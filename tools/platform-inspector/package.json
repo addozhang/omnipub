@@ -1,0 +1,13 @@
+{
+  "name": "platform-inspector",
+  "version": "1.0.0",
+  "description": "调查各平台编辑器 DOM、登录 cookie、发布按钮选择器",
+  "scripts": {
+    "inspect": "node inspect.js",
+    "inspect:all": "node inspect-all.js"
+  },
+  "dependencies": {
+    "playwright": "^1.41.0",
+    "dotenv": "^16.0.0"
+  }
+}

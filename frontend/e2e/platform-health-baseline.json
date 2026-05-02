@@ -1,0 +1,148 @@
+{
+  "$schema": "Platform health-check baseline — selectors and expected DOM structure per platform",
+  "version": 1,
+  "updatedAt": "2026-03-21T00:00:00.000Z",
+  "platforms": {
+    "juejin": {
+      "editorUrl": "https://juejin.cn/editor/drafts/new",
+      "mode": "api",
+      "apiCheck": {
+        "url": "https://api.juejin.cn/content_api/v1/article_draft/create",
+        "method": "POST",
+        "description": "Juejin uses pure API publishing (3-step: create draft → update → publish). Health-check verifies session cookie exists and API endpoint responds."
+      },
+      "sessionCookie": "sessionid",
+      "selectors": {
+        "title": ["input.title-input", "input[placeholder*='标题']"],
+        "editor": [".bytemd", ".bytemd-editor", "textarea"],
+        "publish": ["button:has-text('发布')"]
+      },
+      "notes": "DOM editor unreliable in headless; API mode preferred"
+    },
+    "csdn": {
+      "editorUrl": "https://mp.csdn.net/mp_blog/creation/editor",
+      "mode": "dom",
+      "sessionCookie": "UserToken",
+      "selectors": {
+        "title": ["textarea#txtTitle", "input.article-bar__title", "input[placeholder*='标题']"],
+        "editor": ["iframe.cke_wysiwyg_frame", ".CodeMirror", "#md-editor", "textarea.editor"],
+        "publish": ["button.btn-outline-danger", "button.btn-publish-red"]
+      },
+      "notes": "CKEditor 4 richtext or CodeMirror markdown mode; two-step publish"
+    },
+    "zhihu": {
+      "editorUrl": "https://zhuanlan.zhihu.com/write",
+      "mode": "api",
+      "apiCheck": {
+        "url": "https://www.zhihu.com/api/v4/me",
+        "method": "GET",
+        "description": "Zhihu uses pure API publishing via Playwright HTTP client. Health-check verifies z_c0 cookie and /api/v4/me responds."
+      },
+      "sessionCookie": "z_c0",
+      "selectors": {
+        "title": ["textarea[placeholder*='标题']", "input[placeholder*='标题']"],
+        "editor": ["[contenteditable='true']", ".ProseMirror", ".DraftEditor-root"],
+        "publish": ["button:has-text('发布')"]
+      },
+      "notes": "Anti-bot detection (navigator.webdriver); API-based publish preferred"
+    },
+    "cnblogs": {
+      "editorUrl": "https://i.cnblogs.com/posts/edit",
+      "mode": "dom",
+      "sessionCookie": ".CNBlogsCookie",
+      "selectors": {
+        "title": ["#post-title"],
+        "editor": ["textarea#md-editor", "textarea"],
+        "publish": ["button.cnb-button:has-text('发布')"]
+      },
+      "notes": "Angular change detection; markdown textarea"
+    },
+    "toutiao": {
+      "editorUrl": "https://mp.toutiao.com/profile_v4/graphic/publish",
+      "mode": "dom+api",
+      "sessionCookie": "sid_tt",
+      "selectors": {
+        "title": ["textarea[placeholder*='标题']", "input[placeholder*='标题']", ".article-title textarea", ".ProseMirror-title textarea"],
+        "editor": [".ProseMirror[contenteditable='true']"],
+        "publish": ["button:has-text('发布')"]
+      },
+      "notes": "Two-step API publish; AI assistant drawer may appear; ProseMirror editor"
+    },
+    "tencent-cloud": {
+      "editorUrl": "https://cloud.tencent.com/developer/article/write-new",
+      "mode": "dom",
+      "sessionCookie": "qcloud_uid",
+      "selectors": {
+        "title": ["input[placeholder*='标题']", "input.title-input", "#title"],
+        "editor": ["textarea", ".CodeMirror", "[contenteditable='true']"],
+        "publish": ["button:has-text('发布')"]
+      },
+      "notes": "Session expires easily; no dedicated handler in inspect-publish-dom.ts — falls through to SW/CDP"
+    },
+    "51cto": {
+      "editorUrl": "https://blog.51cto.com/blogger/publish",
+      "mode": "dom",
+      "sessionCookie": "pub_sauth1",
+      "selectors": {
+        "title": ["#title", "input[placeholder*='标题']"],
+        "editor": ["textarea.write-area", "textarea"],
+        "publish": ["#submitForm", ".edit-submit"]
+      },
+      "notes": "Two-step: submitForm then edit-submit confirm; 发文助手 overlay may appear"
+    },
+    "segmentfault": {
+      "editorUrl": "https://segmentfault.com/write",
+      "mode": "dom",
+      "sessionCookie": "PHPSESSID",
+      "selectors": {
+        "title": ["#title"],
+        "editor": [".CodeMirror"],
+        "publish": ["button.btn.btn-primary:has-text('提交')"]
+      },
+      "notes": "CodeMirror markdown editor; tag selection via badge-tag"
+    },
+    "oschina": {
+      "editorUrl": "https://my.oschina.net/blog/write",
+      "mode": "dom",
+      "sessionCookie": "oscid",
+      "selectors": {
+        "title": ["input.title-input", "input[placeholder*='标题']", ".title-input input"],
+        "editor": [".ProseMirror", ".tiptap", "[contenteditable='true']"],
+        "publish": ["button:has-text('发布文章')", "span:has-text('发布文章')"]
+      },
+      "redirectHandling": {
+        "pattern": "/u/{uid}/",
+        "resolveUid": "GET /action/apiv2/user/myself → result.id",
+        "targetUrl": "https://my.oschina.net/u/{uid}/blog/write"
+      },
+      "notes": "Redirects /blog/write → /u/{uid}/; AI writing wizard overlay; two-step publish with 是否公开 checkbox"
+    },
+    "bilibili": {
+      "editorUrl": "https://member.bilibili.com/article-text/home",
+      "mode": "dom",
+      "sessionCookie": "SESSDATA",
+      "selectors": {
+        "title": ["textarea[placeholder*='标题']", "input[placeholder*='标题']"],
+        "editor": [".ql-editor"],
+        "publish": ["button.bre-btn.primary:has-text('提交文章')"]
+      },
+      "notes": "Quill editor; external img tags silently block submission; 更多设置 expansion needed"
+    },
+    "infoq": {
+      "editorUrl": "https://xie.infoq.cn/draft/write",
+      "mode": "dom",
+      "sessionCookie": "GCID",
+      "selectors": {
+        "title": ["input[placeholder*='标题']", "input[type='text']"],
+        "editor": [".ProseMirror", "[contenteditable='true']"],
+        "publish": ["[gk-button][class*=submit]"]
+      },
+      "draftRequired": {
+        "url": "https://xie.infoq.cn/api/v1/draft/create",
+        "method": "POST",
+        "description": "Must create draft via API first to get draftId, then navigate to /draft/{draftId}"
+      },
+      "notes": "Draft pre-creation required; feature announcement modals; 16+ empty modal containers; .dialog-setting for publish confirm"
+    }
+  }
+}

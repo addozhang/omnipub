@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "vditor/dist/index.css";
+
+/* Dark mode transition */
+html {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Vditor dark mode overrides */
+.dark .vditor {
+  --panel-background-color: #1f2937;
+  --textarea-background-color: #111827;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}

@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install extension dependencies
+        run: npm install
+        working-directory: extension
+
+      - name: Lint extension
+        run: npm run lint
+        working-directory: extension
+
+      - name: Pack extension
+        run: bash pack-extension.sh
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push backend image (tagged)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push frontend image (tagged)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Omnipub ${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## Omnipub ${{ steps.version.outputs.VERSION }}
+
+            ### 安装 Chrome 扩展
+            1. 下载下方 `omnipub-extension-*.zip`
+            2. 解压到本地目录
+            3. 打开 `chrome://extensions/` → 开启「开发者模式」
+            4. 「加载已解压的扩展程序」→ 选择解压后的目录
+
+            ### Docker 部署
+            ```bash
+            # 使用此版本镜像
+            docker pull ghcr.io/${{ github.repository }}/backend:${{ steps.version.outputs.VERSION }}
+            docker pull ghcr.io/${{ github.repository }}/frontend:${{ steps.version.outputs.VERSION }}
+            ```
+
+            或直接用 docker-compose.yml 启动（默认用 latest）：
+            ```bash
+            curl -O https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml
+            docker compose up -d
+            ```
+
+            ### 完整文档
+            见 [DEPLOY.md](https://github.com/${{ github.repository }}/blob/main/DEPLOY.md)
+          files: dist/omnipub-extension-*.zip
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}

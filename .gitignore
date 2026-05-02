@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+*.db
+*.db-shm
+*.db-wal
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Env / Secrets
+.env
+*.env.local
+*.env.production
+*.pem
+*.key
+
+# Node
+node_modules/
+dist/
+*.zip
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+frontend/playwright-report/
+frontend/test-results/
+
+# Extension
+extension/node_modules/
+
+# Docker
+data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Chromium test profiles (contain cookies, credentials, session data)
+tmp-chromium-profile/
+frontend/tmp-chromium-profile/
+
+# Test temp files (screenshots, debug artifacts)
+frontend/tmp/
+
+# Tools
+tools/platform-inspector/cookies/
+tools/platform-inspector/node_modules/
+tools/platform-inspector/results/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+toutiao-login.png

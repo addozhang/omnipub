@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>Omnipub Cookie Inspector</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a2e; color: #eee; }
+    h1 { color: #7c6fff; }
+    .tip { background: #2a2a3e; padding: 10px; border-radius: 6px; margin-bottom: 20px; color: #aaa; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th { background: #2a2a3e; padding: 8px 12px; text-align: left; color: #7c6fff; }
+    td { padding: 6px 12px; border-bottom: 1px solid #2a2a3e; font-size: 13px; }
+    .platform { font-weight: bold; color: #fff; }
+    .cookie-name { color: #50fa7b; }
+    .cookie-val { color: #8be9fd; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .no-cookie { color: #ff5555; }
+    .loading { color: #ffb86c; }
+    .status-ok { color: #50fa7b; font-weight: bold; }
+    .status-fail { color: #ff5555; font-weight: bold; }
+    .current-config { color: #ffb86c; font-style: italic; }
+    button { background: #7c6fff; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; margin-bottom: 20px; }
+    button:hover { background: #6c5fff; }
+    #status { margin-bottom: 10px; color: #ffb86c; }
+    .section { margin-bottom: 40px; }
+    h2 { color: #bd93f9; border-bottom: 1px solid #2a2a3e; padding-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🍪 Omnipub Cookie Inspector</h1>
+  <div class="tip">
+    ⚠️ 使用前提：在 <strong>localhost:3000</strong>（或 localhost 任意端口）打开此页面，且已安装 Omnipub 扩展。<br>
+    脚本会列出各平台 <strong>当前所有 cookie</strong>，帮你确认哪个 cookie 是登录标志。<br>
+    建议：先登录某平台，再点「检测」，对比登录前后的 cookie 差异。
+  </div>
+
+  <div id="status">等待扩展响应...</div>
+  <button onclick="runInspect()">🔍 开始检测所有平台 Cookie</button>
+
+  <div id="result"></div>
+
+  <script>
+    const PLATFORMS = [
+      { slug: "juejin",        name: "掘金",     check_url: "https://juejin.cn",               current_cookie: "sessionid" },
+      { slug: "csdn",          name: "CSDN",      check_url: "https://csdn.net",                current_cookie: "UserName" },
+      { slug: "zhihu",         name: "知乎",     check_url: "https://zhihu.com",               current_cookie: "z_c0" },
+      { slug: "cnblogs",       name: "博客园",   check_url: "https://cnblogs.com",             current_cookie: ".CNBlogsCookie" },
+      { slug: "toutiao",       name: "今日头条", check_url: "https://mp.toutiao.com",          current_cookie: "uid_tt" },
+      { slug: "tencent-cloud", name: "腾讯云",   check_url: "https://cloud.tencent.com",       current_cookie: "uin" },
+      { slug: "51cto",         name: "51CTO",     check_url: "https://blog.51cto.com",          current_cookie: "user_token" },
+      { slug: "segmentfault",  name: "思否",     check_url: "https://segmentfault.com",        current_cookie: "PHPSESSID_sf" },
+      { slug: "oschina",       name: "开源中国", check_url: "https://oschina.net",             current_cookie: "gitee-session-n" },
+      { slug: "infoq",         name: "InfoQ",     check_url: "https://xie.infoq.cn",           current_cookie: "_infoq_session" },
+      { slug: "bilibili",      name: "哔哩哔哩", check_url: "https://bilibili.com",            current_cookie: "SESSDATA" },
+    ];
+
+    let extensionReady = false;
+
+    // 等待扩展就绪
+    window.addEventListener("omnipub:ready", (e) => {
+      extensionReady = true;
+      document.getElementById("status").textContent = `✅ 扩展已连接（v${e.detail?.version || "?"}），可以开始检测`;
+    });
+    window.dispatchEvent(new CustomEvent("omnipub:ping"));
+    setTimeout(() => {
+      if (!extensionReady) {
+        document.getElementById("status").textContent = "❌ 未检测到 Omnipub 扩展，请确认已安装并在 localhost 页面打开";
+      }
+    }, 2000);
+
+    // 逐个平台检测 cookie（利用 page-bridge 的 omnipub:check-login）
+    function runInspect() {
+      if (!extensionReady) {
+        alert("扩展未连接，请先安装 Omnipub 扩展并刷新页面");
+        return;
+      }
+
+      document.getElementById("result").innerHTML = "<p class='loading'>检测中...</p>";
+
+      // 构造发给 page-bridge 的格式
+      const platforms = PLATFORMS.map(p => ({
+        slug: p.slug,
+        name: p.name,
+        login_check_config: { check_url: p.check_url, login_cookie: null }, // null = 返回所有 cookie
+        new_article_url: p.check_url,
+      }));
+
+      // 自定义事件：我们需要原始 cookie 列表，不能用现有的 check-login（它只返回 bool）
+      // 改用直接注入脚本的方式：监听结果后渲染
+      window.dispatchEvent(new CustomEvent("omnipub:inspect-cookies", { detail: { platforms: PLATFORMS } }));
+    }
+
+    // 监听检测结果
+    window.addEventListener("omnipub:inspect-cookies-result", (e) => {
+      renderResult(e.detail.results);
+    });
+
+    function renderResult(results) {
+      let html = '<div class="section"><h2>📊 各平台 Cookie 详情</h2>';
+      html += '<table><tr><th>平台</th><th>当前配置的登录 Cookie</th><th>是否命中</th><th>该域名下所有 Cookie 名</th></tr>';
+
+      for (const r of results) {
+        const platform = PLATFORMS.find(p => p.slug === r.slug);
+        const hit = r.cookies.some(c => c === platform.current_cookie);
+        const cookieList = r.cookies.length
+          ? r.cookies.map(c => `<span class="cookie-name">${c}</span>`).join(", ")
+          : '<span class="no-cookie">（无 cookie）</span>';
+
+        html += `<tr>
+          <td class="platform">${r.name}</td>
+          <td class="current-config">${platform.current_cookie}</td>
+          <td class="${hit ? 'status-ok' : 'status-fail'}">${hit ? '✅ 命中' : '❌ 未命中'}</td>
+          <td>${cookieList}</td>
+        </tr>`;
+      }
+
+      html += '</table></div>';
+
+      // 建议修正
+      const suggestions = results.filter(r => {
+        const platform = PLATFORMS.find(p => p.slug === r.slug);
+        return r.cookies.length > 0 && !r.cookies.some(c => c === platform.current_cookie);
+      });
+
+      if (suggestions.length) {
+        html += '<div class="section"><h2>⚠️ 配置可能有误（有 cookie 但未命中）</h2>';
+        html += '<p style="color:#aaa;font-size:13px">以下平台有 cookie 但配置的名称未匹配，请检查是否已登录 + 对照上方 cookie 列表修正</p>';
+        html += '<ul>';
+        for (const r of suggestions) {
+          const platform = PLATFORMS.find(p => p.slug === r.slug);
+          html += `<li><strong>${r.name}</strong>：当前配置 <code>${platform.current_cookie}</code>，实际有：${r.cookies.map(c=>`<code>${c}</code>`).join(', ')}</li>`;
+        }
+        html += '</ul></div>';
+      }
+
+      document.getElementById("result").innerHTML = html;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omnipub</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- 未登录状态 -->
+  <div id="login-section" class="section hidden">
+    <div class="header">
+      <h1>多平台发布工具</h1>
+      <p class="subtitle">请先登录</p>
+    </div>
+    <div class="login-form">
+      <input type="text" id="session-input" placeholder="粘贴 Session Token">
+      <button id="login-btn" class="btn btn-primary">登录</button>
+    </div>
+    <p id="login-error" class="error hidden"></p>
+  </div>
+
+  <!-- 已登录状态 -->
+  <div id="main-section" class="section hidden">
+    <div class="header">
+      <h1>多平台发布工具</h1>
+      <div class="user-info">
+        <span id="user-name" class="username"></span>
+        <button id="logout-btn" class="btn btn-small btn-secondary">退出</button>
+      </div>
+    </div>
+
+    <!-- 当前页面平台匹配 -->
+    <div id="platform-match" class="card hidden">
+      <div class="card-title">当前页面</div>
+      <div id="matched-platform" class="platform-name"></div>
+    </div>
+
+    <!-- 快捷操作 -->
+    <div class="card">
+      <div class="card-title">快捷操作</div>
+      <a id="goto-write" class="btn btn-block btn-primary" href="#" target="_blank">前往写文章</a>
+    </div>
+
+    <!-- 支持的平台列表 -->
+    <div class="card">
+      <div class="card-title">支持的平台</div>
+      <div id="platform-list" class="platform-list"></div>
+    </div>
+
+    <!-- 配置状态 -->
+    <div class="card">
+      <div class="card-title">配置状态</div>
+      <div class="config-status">
+        <span id="config-count">-</span> 个平台已配置
+      </div>
+    </div>
+  </div>
+
+  <!-- 后端地址设置（始终可见） -->
+  <div class="section api-base-section">
+    <div class="card">
+      <div class="card-title">后端地址</div>
+      <div class="api-base-form">
+        <input type="text" id="api-base-input" placeholder="http://localhost:3000">
+        <button id="save-api-base-btn" class="btn btn-small btn-secondary">保存</button>
+      </div>
+      <p id="api-base-status" class="api-base-status hidden"></p>
+    </div>
+  </div>
+
+  <!-- 底部版本号 -->
+  <div class="footer">
+    <span id="version"></span>
+  </div>
+
+  <script src="../config/platforms.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

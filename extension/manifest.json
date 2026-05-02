@@ -1,0 +1,225 @@
+{
+  "manifest_version": 3,
+  "name": "Omnipub",
+  "description": "一键将 Markdown 文章分发到掘金、CSDN、知乎等 11 个技术博客平台",
+  "version": "1.4.0",
+
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "cookies",
+    "webNavigation"
+  ],
+
+  "host_permissions": [
+    "<all_urls>"
+  ],
+
+  "externally_connectable": {
+    "matches": [
+      "http://localhost/*",
+      "https://localhost/*",
+      "http://localhost:3000/*",
+      "http://localhost:5173/*",
+      "http://127.0.0.1/*",
+      "http://127.0.0.1:3000/*",
+      "http://127.0.0.1:5173/*"
+    ]
+  },
+
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://localhost:3000/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:3000/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": ["content-scripts/main-world-bridge.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://localhost/*",
+        "http://localhost:3000/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:3000/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": ["content-scripts/page-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["*://juejin.cn/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/juejin.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://editor.csdn.net/*", "*://mp.csdn.net/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/csdn.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://zhuanlan.zhihu.com/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/zhihu.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://i.cnblogs.com/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/cnblogs.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://mp.toutiao.com/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/toutiao.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://cloud.tencent.com/developer/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/tencent-cloud.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://blog.51cto.com/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/51cto.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://segmentfault.com/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/segmentfault.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://my.oschina.net/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/oschina.js"
+      ],
+      "run_at": "document_idle"
+    },
+
+    {
+      "matches": ["*://xie.infoq.cn/*"],
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/infoq.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://member.bilibili.com/*"],
+      "all_frames": true,
+      "js": [
+        "config/platforms.js",
+        "content-scripts/common/editor-adapters.js",
+        "content-scripts/common/overlay.js",
+        "content-scripts/common/bridge.js",
+        "content-scripts/common/base-publisher.js",
+        "content-scripts/success-detector.js",
+        "content-scripts/publishers/bilibili.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

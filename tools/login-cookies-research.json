@@ -1,0 +1,90 @@
+[
+  {
+    "slug": "juejin",
+    "name": "掘金",
+    "login_cookie": "sessionid",
+    "confidence": "high",
+    "source": "大量 GitHub 爬虫项目（如 juejin-helper、xitu/juejin-analysis）均使用 sessionid 作为登录凭证；掘金 API 需携带此 cookie",
+    "api_check": "GET https://api.juejin.cn/user_api/v1/user/get — 登录态返回 200 + err_no:0，未登录返回 err_no:401003"
+  },
+  {
+    "slug": "csdn",
+    "name": "CSDN",
+    "login_cookie": "UserToken",
+    "confidence": "high",
+    "source": "CSDN 登录后同时设置 UserName 和 UserToken，其中 UserToken 为鉴权 token；多个爬虫项目（csdn-spider、auto-csdn-blog）以此判断登录状态。注：UserName 仅是用户名明文，UserToken 才是真正的登录凭证",
+    "api_check": "GET https://api.csdn.net/profile/head — 登录态返回 200 + 用户信息，未登录返回 401"
+  },
+  {
+    "slug": "zhihu",
+    "name": "知乎",
+    "login_cookie": "z_c0",
+    "confidence": "high",
+    "source": "知乎官方 cookie，社区公认的登录凭证，zhihu-py3、zhihu-oauth 等主流库均以此作为登录判断；退出后立即失效",
+    "api_check": "GET https://www.zhihu.com/api/v4/me — 登录态返回 200 + 用户信息，未登录返回 401"
+  },
+  {
+    "slug": "cnblogs",
+    "name": "博客园",
+    "login_cookie": ".CNBlogsCookie",
+    "confidence": "medium",
+    "source": "博客园 ASP.NET 身份认证 cookie，多个项目（cnblogs-api、cnblogs-helper）引用该 cookie 名；.NET Forms Authentication 标准名称",
+    "api_check": "GET https://www.cnblogs.com/mvc/blog/sidecolumn.aspx — 登录态响应包含用户信息块，未登录无个人信息"
+  },
+  {
+    "slug": "toutiao",
+    "name": "今日头条",
+    "login_cookie": "sid_tt",
+    "confidence": "high",
+    "source": "今日头条/字节系 session cookie，抖音/头条爬虫项目（TikTokLive、tiktok-scraper）均以 sid_tt 作为登录 session 凭证；uid_tt 为用户 ID（登录前也可能存在），sid_tt 才是会话凭证",
+    "api_check": "GET https://mp.toutiao.com/profile_v4/index/page-info — 登录态返回 200 + 用户信息，未登录重定向到登录页"
+  },
+  {
+    "slug": "tencent-cloud",
+    "name": "腾讯云",
+    "login_cookie": "uin",
+    "confidence": "medium",
+    "source": "腾讯系通用登录 cookie（uin = user identification number），配合 skey/p_skey 使用；腾讯云控制台页面通过 uin 判断登录状态，多个腾讯云 SDK 项目有引用",
+    "api_check": "GET https://cloud.tencent.com/api/sts/authcode — 登录态返回 200，未登录返回含 redirect 的响应"
+  },
+  {
+    "slug": "51cto",
+    "name": "51CTO",
+    "login_cookie": "user_token",
+    "confidence": "medium",
+    "source": "51CTO 社区项目及部分爬虫脚本中出现 user_token 作为登录凭证；博客发布 API 需携带此 token",
+    "api_check": "GET https://api.51cto.com/blog/v2/user/info — 登录态返回用户信息，未登录返回 401（需携带 user_token cookie）"
+  },
+  {
+    "slug": "segmentfault",
+    "name": "思否",
+    "login_cookie": "PHPSESSID_sf",
+    "confidence": "medium",
+    "source": "思否使用 PHP 后端，PHPSESSID_sf 为其定制化的 PHP session cookie（标准 PHPSESSID 加 _sf 后缀）；社区讨论及爬虫项目中有引用",
+    "api_check": "GET https://segmentfault.com/api/user — 登录态返回 200 + 用户信息，未登录返回 {status:0,message:'未登录'}"
+  },
+  {
+    "slug": "oschina",
+    "name": "开源中国",
+    "login_cookie": "gitee-session-n",
+    "confidence": "medium",
+    "source": "开源中国账户与 Gitee 合并后使用统一认证，session cookie 名为 gitee-session-n；oschina 相关爬虫及 gitee-api 项目中有引用",
+    "api_check": "GET https://www.oschina.net/action/ajax/get_my_follow_recommend — 登录态返回用户数据，未登录返回 {result:false}"
+  },
+  {
+    "slug": "infoq",
+    "name": "InfoQ",
+    "login_cookie": "_infoq_session",
+    "confidence": "medium",
+    "source": "InfoQ 中文站（xie.infoq.cn）使用 Rails/Ruby 后端，_infoq_session 为标准 Rails session cookie 命名模式；社区讨论中有提及，InfoQ 写作平台 API 需携带此 cookie",
+    "api_check": "GET https://xie.infoq.cn/api/user/profile — 登录态返回用户信息，未登录返回 401"
+  },
+  {
+    "slug": "bilibili",
+    "name": "哔哩哔哩",
+    "login_cookie": "SESSDATA",
+    "confidence": "high",
+    "source": "B 站官方 API 文档及大量开源项目（bilibili-api、Bilibili-Evolved、you-get）均以 SESSDATA 作为登录凭证；退出后立即失效，是最重要的身份认证 cookie",
+    "api_check": "GET https://api.bilibili.com/x/web-interface/nav — 登录态返回 isLogin:true + 用户信息，未登录返回 isLogin:false"
+  }
+]

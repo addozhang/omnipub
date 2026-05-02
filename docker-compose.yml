@@ -1,0 +1,49 @@
+services:
+  backend:
+    image: ghcr.io/addozhang/omnipub/backend:latest
+    platform: linux/amd64
+    # 本地开发时注释掉 image，取消注释 build：
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:///./data/omnipub.db
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      DEBUG: ${DEBUG:-false}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+    volumes:
+      - db_data:/app/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: ghcr.io/addozhang/omnipub/frontend:latest
+    platform: linux/amd64
+    # 本地开发时注释掉 image，取消注释 build：
+    # build:
+    #   context: ./frontend
+    #   dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:80"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db_data:

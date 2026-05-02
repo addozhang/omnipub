@@ -1,0 +1,15 @@
+*.db
+*.db-journal
+.git
+.venv
+__pycache__
+*.pyc
+tests/
+frontend/node_modules
+frontend/dist
+extension/
+.env
+.coverage
+*.egg-info
+.pytest_cache
+.ruff_cache
