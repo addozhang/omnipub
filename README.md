@@ -1,6 +1,9 @@
 # Omnipub
 
 [![CI](https://github.com/addozhang/omnipub/actions/workflows/ci.yml/badge.svg)](https://github.com/addozhang/omnipub/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/addozhang/omnipub)](https://github.com/addozhang/omnipub/releases)
+[![Stars](https://img.shields.io/github/stars/addozhang/omnipub?style=social)](https://github.com/addozhang/omnipub/stargazers)
 
 一键将 Markdown 文章发布到 11 个技术博客平台的工具。
 
