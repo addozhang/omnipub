@@ -1,0 +1,76 @@
+name: 新平台支持
+description: 申请支持新的发布平台
+title: "[Platform] 支持 XXX"
+labels: ["enhancement", "new-platform"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提议新平台！添加新平台需要平台特定的研究，请尽量提供详细信息。
+
+        参考现有 publisher 实现：[`extension/content-scripts/publishers/`](https://github.com/addozhang/omnipub/tree/main/extension/content-scripts/publishers)
+
+  - type: input
+    id: platform-name
+    attributes:
+      label: 平台名称
+      placeholder: 例如：少数派 / 简书 / Medium
+    validations:
+      required: true
+
+  - type: input
+    id: platform-url
+    attributes:
+      label: 平台主页 URL
+      placeholder: https://sspai.com/
+    validations:
+      required: true
+
+  - type: input
+    id: editor-url
+    attributes:
+      label: 编辑器/写文章页面 URL
+      placeholder: https://sspai.com/editor
+    validations:
+      required: true
+
+  - type: dropdown
+    id: editor-type
+    attributes:
+      label: 编辑器类型（如果知道）
+      options:
+        - Markdown 原生（textarea）
+        - 富文本 contenteditable
+        - ProseMirror / TipTap
+        - CodeMirror（如 ByteMD）
+        - CKEditor
+        - TinyMCE
+        - 其他/未知
+
+  - type: dropdown
+    id: api-available
+    attributes:
+      label: 是否有公开 API？
+      options:
+        - 有公开 API
+        - 有内部 API（需逆向）
+        - 只能模拟 DOM 操作
+        - 不确定
+
+  - type: textarea
+    id: usage
+    attributes:
+      label: 你的使用场景
+      description: 为什么需要这个平台？月发布量大概多少？
+      placeholder: 例如：我每月在少数派发布 5 篇技术文章，希望能一键同步
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 已知技术细节（可选）
+      description: |
+        如果你已经研究过这个平台，请提供：
+        - 登录态 cookie 名称
+        - 草稿/发布的 API 端点
+        - 标题/正文的 DOM 选择器
+        - 其他坑点

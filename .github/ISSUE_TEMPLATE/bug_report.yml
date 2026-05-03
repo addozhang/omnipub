@@ -1,0 +1,97 @@
+name: Bug 报告
+description: 反馈 Omnipub 的 bug 或异常行为
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈 bug！请尽量提供详细信息，方便定位问题。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 简洁描述发生了什么
+      placeholder: 例如：在掘金平台发布时，标题没有被填充
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 一步步说明如何复现这个问题
+      placeholder: |
+        1. 创建一篇文章
+        2. 进入发布页面，勾选"掘金"
+        3. 点击"一键发布"
+        4. 看到掘金编辑器打开但标题为空
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      placeholder: 期望标题被自动填入掘金编辑器
+    validations:
+      required: true
+
+  - type: input
+    id: omnipub-version
+    attributes:
+      label: Omnipub 版本
+      description: 后端 + 扩展版本（在扩展弹窗或 `/api/extension/version` 查看）
+      placeholder: "v1.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: 浏览器版本
+      placeholder: "Chrome 130.0.6723.92"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 操作系统
+      placeholder: "macOS 14.5 / Windows 11 / Ubuntu 22.04"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: 部署方式
+      options:
+        - Docker Compose（默认 ghcr.io 镜像）
+        - 从源码 Docker build
+        - 纯本地（uvicorn + npm dev）
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      description: |
+        粘贴相关日志：
+        - 后端日志：`docker compose logs backend --tail=100`
+        - 浏览器 Console（F12）
+        - 扩展 Service Worker 日志（`chrome://extensions/` → 扩展详情 → "Service Worker"）
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 检查清单
+      options:
+        - label: 我已搜索现有 issues 确认这不是重复问题
+          required: true
+        - label: 我使用的是最新版本（或已说明版本）
+          required: true

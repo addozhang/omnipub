@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/addozhang/omnipub/discussions
+    about: 提问、讨论想法、分享使用经验请到 Discussions
+  - name: 🔒 报告安全漏洞
+    url: https://github.com/addozhang/omnipub/security/advisories/new
+    about: 安全问题请通过私密 Security Advisory 反馈，不要在公开 issue 提交
