@@ -134,7 +134,7 @@
         return;
       }
 
-      let targetRadio = [...radios].find((r) => r.value === "1") || radios[0];
+      const targetRadio = [...radios].find((r) => r.value === "1") || radios[0];
 
       const label = targetRadio.closest(".t-radio");
       if (label) {
