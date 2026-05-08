@@ -1,0 +1,205 @@
+<svg viewBox="0 0 1400 860" xmlns="http://www.w3.org/2000/svg">
+  <title>Omnipub Architecture</title>
+  <desc>System architecture showing Frontend, Backend API, and Chrome Extension subsystems</desc>
+
+  <defs>
+    <filter id="shadow-sm">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow-slate" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#2563EB"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#10b981"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-pink" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#ec4899"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="860" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="700" y="44" font-family="system-ui" font-size="28" font-weight="700" fill="#1e293b" text-anchor="middle">Omnipub System Architecture</text>
+
+  <!-- ================================================================ -->
+  <!-- USER / BROWSER (top center)  y=70..140                          -->
+  <!-- ================================================================ -->
+  <g id="user">
+    <rect x="530" y="70" width="340" height="70" rx="16" fill="#1e293b" stroke="#334155" stroke-width="3" filter="url(#shadow-sm)"/>
+    <text x="700" y="103" font-family="system-ui" font-size="20" font-weight="700" fill="white" text-anchor="middle">User / Browser</text>
+    <text x="700" y="125" font-family="system-ui" font-size="12" fill="#94a3b8" text-anchor="middle">Chrome + Omnipub Extension</text>
+  </g>
+
+  <!-- ================================================================ -->
+  <!-- TOP ARROWS: User → Frontend, User → Extension                   -->
+  <!-- Gap zone: y=140..200                                            -->
+  <!-- ================================================================ -->
+
+  <!-- User → Frontend -->
+  <path d="M 600 140 L 600 165 L 250 165 L 250 200" fill="none" stroke="#2563EB" stroke-width="2.5" marker-end="url(#arrow-blue)"/>
+  <text x="425" y="158" font-family="system-ui" font-size="11" fill="#2563EB" text-anchor="middle" font-weight="600">HTTP</text>
+
+  <!-- User → Extension -->
+  <path d="M 800 140 L 800 165 L 1130 165 L 1130 200" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-amber)"/>
+  <text x="965" y="158" font-family="system-ui" font-size="11" fill="#d97706" text-anchor="middle" font-weight="600">DOM Inject</text>
+
+  <!-- ================================================================ -->
+  <!-- THREE SUBSYSTEM BOXES  y=200..500                               -->
+  <!-- ================================================================ -->
+
+  <!-- FRONTEND  x=60..440 -->
+  <g id="frontend">
+    <rect x="60" y="200" width="380" height="300" rx="16" fill="#eff6ff" stroke="#2563EB" stroke-width="3" filter="url(#shadow-sm)"/>
+    <text x="250" y="236" font-family="system-ui" font-size="20" font-weight="700" fill="#1e40af" text-anchor="middle">Frontend</text>
+    <text x="250" y="256" font-family="system-ui" font-size="13" fill="#3b82f6" text-anchor="middle">Vue 3 + Vite + Tailwind</text>
+
+    <rect x="80" y="275" width="160" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="2"/>
+    <text x="160" y="302" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Vue Router</text>
+
+    <rect x="260" y="275" width="160" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="2"/>
+    <text x="340" y="302" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Pinia Stores</text>
+
+    <rect x="80" y="332" width="160" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="2"/>
+    <text x="160" y="359" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Vditor Editor</text>
+
+    <rect x="260" y="332" width="160" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="2"/>
+    <text x="340" y="359" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Axios API</text>
+
+    <rect x="80" y="389" width="340" height="44" rx="8" fill="white" stroke="#93c5fd" stroke-width="2"/>
+    <text x="250" y="416" font-family="system-ui" font-size="12" fill="#1e293b" text-anchor="middle">Dashboard / Articles / Publish / Settings</text>
+
+    <text x="250" y="480" font-family="system-ui" font-size="11" fill="#64748b" text-anchor="middle">localhost:3000</text>
+  </g>
+
+  <!-- BACKEND  x=500..880 -->
+  <g id="backend">
+    <rect x="500" y="200" width="380" height="300" rx="16" fill="#f0fdf4" stroke="#10b981" stroke-width="3" filter="url(#shadow-sm)"/>
+    <text x="690" y="236" font-family="system-ui" font-size="20" font-weight="700" fill="#065f46" text-anchor="middle">Backend API</text>
+    <text x="690" y="256" font-family="system-ui" font-size="13" fill="#10b981" text-anchor="middle">FastAPI + SQLAlchemy</text>
+
+    <rect x="520" y="275" width="160" height="44" rx="8" fill="white" stroke="#6ee7b7" stroke-width="2"/>
+    <text x="600" y="302" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Auth (JWT)</text>
+
+    <rect x="700" y="275" width="160" height="44" rx="8" fill="white" stroke="#6ee7b7" stroke-width="2"/>
+    <text x="780" y="302" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Articles CRUD</text>
+
+    <rect x="520" y="332" width="160" height="44" rx="8" fill="white" stroke="#6ee7b7" stroke-width="2"/>
+    <text x="600" y="359" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Publications</text>
+
+    <rect x="700" y="332" width="160" height="44" rx="8" fill="white" stroke="#6ee7b7" stroke-width="2"/>
+    <text x="780" y="359" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Platforms</text>
+
+    <rect x="520" y="389" width="340" height="44" rx="8" fill="white" stroke="#6ee7b7" stroke-width="2"/>
+    <text x="690" y="416" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">SQLite / PostgreSQL + Alembic</text>
+
+    <text x="690" y="480" font-family="system-ui" font-size="11" fill="#64748b" text-anchor="middle">localhost:8000</text>
+  </g>
+
+  <!-- EXTENSION  x=940..1320 -->
+  <g id="extension">
+    <rect x="940" y="200" width="380" height="300" rx="16" fill="#fef3c7" stroke="#f59e0b" stroke-width="3" filter="url(#shadow-sm)"/>
+    <text x="1130" y="236" font-family="system-ui" font-size="20" font-weight="700" fill="#92400e" text-anchor="middle">Chrome Extension</text>
+    <text x="1130" y="256" font-family="system-ui" font-size="13" fill="#d97706" text-anchor="middle">MV3 + Content Scripts</text>
+
+    <rect x="960" y="275" width="160" height="44" rx="8" fill="white" stroke="#fcd34d" stroke-width="2"/>
+    <text x="1040" y="302" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Service Worker</text>
+
+    <rect x="1140" y="275" width="160" height="44" rx="8" fill="white" stroke="#fcd34d" stroke-width="2"/>
+    <text x="1220" y="302" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Popup UI</text>
+
+    <rect x="960" y="332" width="160" height="44" rx="8" fill="white" stroke="#fcd34d" stroke-width="2"/>
+    <text x="1040" y="359" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Bridge Scripts</text>
+
+    <rect x="1140" y="332" width="160" height="44" rx="8" fill="white" stroke="#fcd34d" stroke-width="2"/>
+    <text x="1220" y="359" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">Publishers (11)</text>
+
+    <rect x="960" y="389" width="340" height="44" rx="8" fill="white" stroke="#fcd34d" stroke-width="2"/>
+    <text x="1130" y="416" font-family="system-ui" font-size="13" fill="#1e293b" text-anchor="middle">BasePublisher + Editor Adapters</text>
+
+    <text x="1130" y="480" font-family="system-ui" font-size="11" fill="#64748b" text-anchor="middle">Browser Extension</text>
+  </g>
+
+  <!-- ================================================================ -->
+  <!-- HORIZONTAL ARROWS: Frontend ↔ Backend ↔ Extension               -->
+  <!-- In the gaps between boxes, at y=350 (vertical center of boxes)  -->
+  <!-- ================================================================ -->
+
+  <!-- Frontend → Backend -->
+  <line x1="440" y1="350" x2="500" y2="350" stroke="#2563EB" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="470" y="335" font-family="system-ui" font-size="10" fill="#2563EB" text-anchor="middle" font-weight="600">REST API</text>
+
+  <!-- Extension → Backend -->
+  <line x1="940" y1="350" x2="880" y2="350" stroke="#10b981" stroke-width="3" marker-end="url(#arrow-green)"/>
+  <text x="910" y="335" font-family="system-ui" font-size="10" fill="#10b981" text-anchor="middle" font-weight="600">Auth / Stats</text>
+
+  <!-- ================================================================ -->
+  <!-- CUSTOMEVENT BRIDGE: Frontend ↔ Extension (U-path below boxes)   -->
+  <!-- Path: y=500 down to y=555, across, back up to y=500            -->
+  <!-- ================================================================ -->
+  <path d="M 250 500 L 250 555 L 1130 555 L 1130 500" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="8,4"/>
+  <!-- Arrowheads pointing up at both ends -->
+  <polygon points="250,500 245,512 255,512" fill="#f59e0b"/>
+  <polygon points="1130,500 1125,512 1135,512" fill="#f59e0b"/>
+  <text x="690" y="550" font-family="system-ui" font-size="11" fill="#d97706" text-anchor="middle" font-weight="600">CustomEvent Bridge</text>
+
+  <!-- ================================================================ -->
+  <!-- FILL &amp; PUBLISH ARROW: Extension → Platforms                     -->
+  <!-- From Extension right side (x=1250) straight down to Platforms   -->
+  <!-- Separated from bridge arrowhead at x=1130                       -->
+  <!-- ================================================================ -->
+  <line x1="1250" y1="500" x2="1250" y2="620" stroke="#ec4899" stroke-width="3" marker-end="url(#arrow-pink)"/>
+  <text x="1265" y="565" font-family="system-ui" font-size="11" fill="#ec4899" text-anchor="start" font-weight="600">Fill &amp;</text>
+  <text x="1265" y="579" font-family="system-ui" font-size="11" fill="#ec4899" text-anchor="start" font-weight="600">Publish</text>
+
+  <!-- ================================================================ -->
+  <!-- EXTERNAL PLATFORMS  y=630..790                                  -->
+  <!-- ================================================================ -->
+  <g id="platforms">
+    <rect x="60" y="630" width="1280" height="160" rx="16" fill="#fce7f3" stroke="#ec4899" stroke-width="3" filter="url(#shadow-sm)"/>
+    <text x="700" y="665" font-family="system-ui" font-size="20" font-weight="700" fill="#9d174d" text-anchor="middle">External Platforms (11)</text>
+
+    <!-- Row of platform boxes -->
+    <rect x="80" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="128" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Juejin</text>
+
+    <rect x="188" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="236" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">CSDN</text>
+
+    <rect x="296" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="344" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Zhihu</text>
+
+    <rect x="404" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="452" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Cnblogs</text>
+
+    <rect x="512" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="560" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Toutiao</text>
+
+    <rect x="620" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="668" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Tencent</text>
+
+    <rect x="728" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="776" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">51CTO</text>
+
+    <rect x="836" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="884" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Segmentfault</text>
+
+    <rect x="944" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="992" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">OSChina</text>
+
+    <rect x="1052" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="1100" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">InfoQ</text>
+
+    <rect x="1160" y="685" width="96" height="36" rx="8" fill="white" stroke="#f9a8d4" stroke-width="2"/>
+    <text x="1208" y="708" font-family="system-ui" font-size="11" fill="#1e293b" text-anchor="middle">Bilibili</text>
+
+    <text x="700" y="760" font-family="system-ui" font-size="13" fill="#64748b" text-anchor="middle">Content Scripts auto-fill editors and publish articles</text>
+  </g>
+</svg>

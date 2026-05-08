@@ -1,9 +1,15 @@
-# Omnipub
+<p align="center">
+  <img src="docs/banner.svg" alt="Omnipub Banner" width="800"/>
+</p>
 
-[![CI](https://github.com/addozhang/omnipub/actions/workflows/ci.yml/badge.svg)](https://github.com/addozhang/omnipub/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![Release](https://img.shields.io/github/v/release/addozhang/omnipub)](https://github.com/addozhang/omnipub/releases)
-[![Stars](https://img.shields.io/github/stars/addozhang/omnipub?style=social)](https://github.com/addozhang/omnipub/stargazers)
+<p align="center">
+  <a href="https://github.com/addozhang/omnipub/actions/workflows/ci.yml"><img src="https://github.com/addozhang/omnipub/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://github.com/addozhang/omnipub/releases"><img src="https://img.shields.io/github/v/release/addozhang/omnipub" alt="Release"></a>
+  <a href="https://github.com/addozhang/omnipub/stargazers"><img src="https://img.shields.io/github/stars/addozhang/omnipub?style=social" alt="Stars"></a>
+</p>
+
+# Omnipub
 
 一键将 Markdown 文章发布到 11 个技术博客平台的工具。
 
@@ -15,6 +21,12 @@
 ## 支持平台
 
 掘金 · CSDN · 知乎 · 博客园 · 今日头条 · 腾讯云 · 51CTO · 思否 · 开源中国 · InfoQ · 哔哩哔哩
+
+## 架构
+
+<p align="center">
+  <img src="docs/architecture.svg" alt="Omnipub Architecture" width="900"/>
+</p>
 
 ## 快速启动
 
