@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Omnipub",
   "description": "一键将 Markdown 文章分发到掘金、CSDN、知乎等 11 个技术博客平台",
-  "version": "1.4.0",
+  "version": "1.4.1",
 
   "permissions": [
     "storage",
