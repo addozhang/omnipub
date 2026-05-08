@@ -1,7 +1,7 @@
 import datetime
 
+import jwt
 import pytest
-from jose import jwt
 
 from app.config import settings
 from app.utils.security import (
