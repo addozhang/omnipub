@@ -1,6 +1,6 @@
 [project]
 name = "omnipub"
-version = "1.4.1"
+version = "1.4.3"
 description = "多平台文章一键发布工具后端"
 requires-python = ">=3.12"
 dependencies = [
