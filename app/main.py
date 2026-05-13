@@ -198,7 +198,7 @@ async def health():
 
 
 # 扩展期望版本——与 extension/manifest.json 中的 version 字段保持同步
-EXTENSION_VERSION = "1.4.0"
+EXTENSION_VERSION = "1.4.2"
 
 _ = api_key_module
 _ = user_platform_config_module

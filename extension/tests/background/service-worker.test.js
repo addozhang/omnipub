@@ -374,5 +374,58 @@ describe("service-worker", () => {
       expect(result.results[0].loggedIn).toBe(true);
       expect(global.fetch).not.toHaveBeenCalled();
     });
+
+    it("returns loggedIn=false when PLATFORM_CONFIGS slug not found (no fallback to 'any cookie')", async () => {
+      // 回归测试：旧实现会 fallback 到 platform.new_article_url + "任意 cookie 即登录"，
+      // 在 SW 里 PLATFORM_CONFIGS 丢失或平台未配置时把所有平台误判为已登录
+      chrome.cookies.getAll.mockResolvedValueOnce([
+        { name: "_ga", value: "x" },
+        { name: "Hm_lvt", value: "y" },
+      ]);
+      const { messageHandler } = await loadServiceWorker();
+
+      const result = await callHandler(messageHandler, {
+        action: "checkLogin",
+        platforms: [
+          {
+            slug: "unknown-platform",
+            name: "未知平台",
+            new_article_url: "https://example.com/write",
+          },
+        ],
+      });
+
+      expect(result.results[0].loggedIn).toBe(false);
+      // 不应调用 cookies.getAll，因为找不到配置就直接返回 false
+      expect(chrome.cookies.getAll).not.toHaveBeenCalled();
+    });
+
+    it("returns all loggedIn=false and surfaces error when PLATFORM_CONFIGS unavailable", async () => {
+      // 回归测试：SW 重启后偶发 PLATFORM_CONFIGS 丢失的情形
+      const { messageHandler } = await loadServiceWorker();
+      // 清空全局配置模拟丢失
+      delete globalThis.PLATFORM_CONFIGS;
+      if (typeof self !== "undefined") delete self.PLATFORM_CONFIGS;
+      // 阻止 importScripts 重新加载
+      const origImport = globalThis.importScripts;
+      globalThis.importScripts = () => { throw new Error("simulated import failure"); };
+
+      try {
+        const result = await callHandler(messageHandler, {
+          action: "checkLogin",
+          platforms: [
+            { slug: "juejin", name: "掘金" },
+            { slug: "csdn", name: "CSDN" },
+          ],
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("PLATFORM_CONFIGS");
+        expect(result.results).toHaveLength(2);
+        expect(result.results.every((r) => r.loggedIn === false)).toBe(true);
+      } finally {
+        globalThis.importScripts = origImport;
+      }
+    });
   });
 });

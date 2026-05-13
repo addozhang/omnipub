@@ -785,26 +785,47 @@ async function handleMessage(message, sender) {
     // ---- 登录状态检查（由 page-bridge 转发，在 SW 中执行以确保 cookie 可访问） ----
     case "checkLogin": {
       const platforms = message.platforms || [];
+
+      // 健壮性：若 PLATFORM_CONFIGS 在 SW 重启后未加载，重新 importScripts
+      // （MV3 service worker 偶发会丢失初始化时通过 importScripts 加载的全局变量）
+      const _selfScope = typeof self !== "undefined" ? self : globalThis;
+      let configs = (typeof PLATFORM_CONFIGS !== "undefined" && PLATFORM_CONFIGS) || _selfScope.PLATFORM_CONFIGS || globalThis.PLATFORM_CONFIGS;
+      if (!configs || configs.length === 0) {
+        try {
+          importScripts(chrome.runtime.getURL("config/platforms.js"));
+          configs = _selfScope.PLATFORM_CONFIGS || globalThis.PLATFORM_CONFIGS;
+        } catch (e) {
+          console.error("[ServiceWorker] importScripts(platforms.js) 失败:", e);
+        }
+      }
+      if (!configs || configs.length === 0) {
+        console.error("[ServiceWorker] PLATFORM_CONFIGS 不可用，无法执行 checkLogin");
+        return {
+          success: false,
+          results: platforms.map((p) => ({ slug: p.slug, name: p.name, loggedIn: false })),
+          error: "PLATFORM_CONFIGS unavailable",
+        };
+      }
+
       const results = await Promise.all(
         platforms.map(async (platform) => {
-          const localConfig = PLATFORM_CONFIGS.find((c) => c.slug === platform.slug);
+          const localConfig = configs.find((c) => c.slug === platform.slug);
           const loginCheck = (localConfig && localConfig.loginCheck) || {};
-          const checkUrl = loginCheck.check_url || platform.new_article_url || "";
+          const checkUrl = loginCheck.check_url;
           const loginCookie = loginCheck.login_cookie;
           const verify = loginCheck.verify;
 
-          if (!checkUrl) {
+          // 强一致：必须同时有 check_url 和 login_cookie 才能可靠判定。
+          // 旧实现会 fallback 到 platform.new_article_url + "任意 cookie 即登录"，
+          // 这会在 PLATFORM_CONFIGS 不可用或配置缺失时把所有平台误判为已登录。
+          if (!checkUrl || !loginCookie) {
+            console.warn(`[ServiceWorker] checkLogin: ${platform.slug} 缺少 check_url 或 login_cookie 配置`);
             return { slug: platform.slug, name: platform.name, loggedIn: false };
           }
 
           try {
             const cookies = await chrome.cookies.getAll({ url: checkUrl });
-            let loggedIn;
-            if (loginCookie) {
-              loggedIn = cookies.some((c) => c.name === loginCookie);
-            } else {
-              loggedIn = cookies.length > 0;
-            }
+            let loggedIn = cookies.some((c) => c.name === loginCookie);
 
             // Optional server verify (defeats stale cookies). Network error
             // returns null and keeps the cookie-based result.
