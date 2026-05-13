@@ -54,6 +54,9 @@ frontend/tmp-chromium-profile/
 # Test temp files (screenshots, debug artifacts)
 frontend/tmp/
 
+# E2E session-health cookie snapshot (contains live cookies)
+frontend/omnipub-cookie-state.json
+
 # Tools
 tools/platform-inspector/cookies/
 tools/platform-inspector/node_modules/
