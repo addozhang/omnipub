@@ -10,7 +10,13 @@
  * - loginCheck：登录态检查配置（service-worker.js 的 checkLogin 用）
  *   - check_url：cookies.getAll 的 url
  *   - login_cookie：必须存在的 cookie 名
- *   - verify（可选）：服务端二次校验，用于击穿过期残留 cookie
+ *   - verify：服务端二次校验，用于击穿过期残留 cookie。两种模式：
+ *     · API 模式    { url, method?, headers?, success_path?, success_value? }
+ *     · 重定向模式  { url, login_url_pattern }  —— 请求需登录页面，看是否被 302 到登录页
+ *
+ * 为什么每个平台都必须配 verify：
+ *   cookie 存在 ≠ 会话有效。后台登出、异地登录、服务端 token 撤销都会让会话失效，
+ *   但 cookie 仍留在浏览器里直到其自身过期，此时纯 cookie 判断会误报「已登录」。
  */
 // 双环境兼容：service worker 用 importScripts 加载（self 作用域），
 // content script 通过 manifest 注入（window 作用域）。统一挂到 globalThis。
@@ -30,6 +36,10 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://juejin.cn",
       login_cookie: "sessionid",
+      verify: {
+        url: "https://api.juejin.cn/user_api/v1/user/get?aid=2608",
+        success_path: "data.user_id",
+      },
     },
   },
   {
@@ -47,6 +57,12 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://mp.csdn.net",
       login_cookie: "UserToken",
+      // bizapi.csdn.net 需要 X-Ca-Key 签名头，扩展裸调用会 401，故改用 msg 服务。
+      verify: {
+        url: "https://msg.csdn.net/v1/web/message/view/unread",
+        method: "POST",
+        success_path: "data.avatarUrl",
+      },
     },
   },
   {
@@ -63,6 +79,10 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://zhuanlan.zhihu.com",
       login_cookie: "z_c0",
+      verify: {
+        url: "https://www.zhihu.com/api/v4/me",
+        success_path: "id",
+      },
     },
   },
   {
@@ -79,6 +99,10 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://i.cnblogs.com",
       login_cookie: ".CNBlogsCookie",
+      // 未登录返回 401 {"errors":["Unauthorized"]}，无 success_path 时只校验 HTTP 2xx。
+      verify: {
+        url: "https://i.cnblogs.com/api/user",
+      },
     },
   },
   {
@@ -95,6 +119,12 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://mp.toutiao.com",
       login_cookie: "sid_tt",
+      // 未登录返回 err_no 100004 "user not login"。
+      verify: {
+        url: "https://mp.toutiao.com/mp/agw/media/get_media_info/",
+        success_path: "err_no",
+        success_value: 0,
+      },
     },
   },
   {
@@ -111,6 +141,11 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://cloud.tencent.com/developer",
       login_cookie: "qcommunity_session",
+      // 无可裸调用的用户接口，改用重定向校验：未登录会 302 到 cloud.tencent.com/login。
+      verify: {
+        url: "https://cloud.tencent.com/developer/article/write",
+        login_url_pattern: "cloud\\.tencent\\.com/login",
+      },
     },
   },
   {
@@ -127,6 +162,11 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://blog.51cto.com",
       login_cookie: "pub_sauth1",
+      // 未登录会 302 到 home.51cto.com/index。
+      verify: {
+        url: "https://blog.51cto.com/blogger/publish",
+        login_url_pattern: "home\\.51cto\\.com",
+      },
     },
   },
   {
@@ -143,6 +183,11 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://segmentfault.com",
       login_cookie: "PHPSESSID",
+      // gateway 接口需额外校验头（裸调用返回 403「非法请求」），改用重定向校验。
+      verify: {
+        url: "https://segmentfault.com/write",
+        login_url_pattern: "segmentfault\\.com/user/login",
+      },
     },
   },
   {
@@ -181,6 +226,12 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://xie.infoq.cn",
       login_cookie: "GCID",
+      // account.infoq.cn/serv/v1/user/auth 对扩展 origin 返回 451，改用写作社区自身接口。
+      verify: {
+        url: "https://xie.infoq.cn/public/v1/user/get_user",
+        method: "POST",
+        success_path: "data.uid",
+      },
     },
   },
   {
@@ -197,6 +248,11 @@ const PLATFORM_CONFIGS = (globalThis.PLATFORM_CONFIGS = [
     loginCheck: {
       check_url: "https://member.bilibili.com",
       login_cookie: "SESSDATA",
+      verify: {
+        url: "https://api.bilibili.com/x/web-interface/nav",
+        success_path: "data.isLogin",
+        success_value: true,
+      },
     },
   },
 ]);

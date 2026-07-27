@@ -635,23 +635,48 @@ async function verifySession() {
   }
 }
 
+/** verify 请求超时（毫秒）。超时视为「未知」，回退到 cookie 结果。 */
+const VERIFY_TIMEOUT_MS = 8000;
+
 /**
- * Verify a platform login by calling its server-side API.
+ * Verify a platform login server-side.
  * Returns true (logged in), false (definitively not logged in), or null
- * (network error / unknown — caller should fall back to cookie check).
+ * (network error / timeout — caller should fall back to cookie check).
  *
- * Config shape:
- *   { url, headers?, success_path?, success_value? }
- * - success_path: dot-path into JSON response (e.g. "success" or "data.userId").
- *   If omitted, only HTTP 2xx is required.
- * - success_value: expected value at success_path (default: truthy check).
+ * 两种校验模式，二选一：
+ *
+ * 1. API 模式 —— 平台提供可裸调用（无签名头）的用户信息接口
+ *      { url, method?, headers?, success_path?, success_value? }
+ *    - success_path：JSON 响应的点路径（如 "success" 或 "data.user_id"）。
+ *      省略时只要求 HTTP 2xx。
+ *    - success_value：success_path 处的期望值，省略时做 truthy 判断。
+ *
+ * 2. 重定向模式 —— 平台无公开接口，改为请求「必须登录才能访问的页面」，
+ *    未登录时服务端会 302 到登录页。
+ *      { url, login_url_pattern }
+ *    - login_url_pattern：正则字符串，命中最终 URL 即判定未登录。
+ *
+ * 注意：重定向模式必须由服务端 302 才可靠。纯前端路由跳转（SPA）不会体现在
+ * resp.url 上，这类平台只能用 API 模式。
  */
 async function verifyLoginViaApi(verify, slug) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
   try {
     const resp = await fetch(verify.url, {
+      method: verify.method || "GET",
       credentials: "include",
+      redirect: "follow",
+      signal: controller.signal,
       headers: { Accept: "application/json", ...(verify.headers || {}) },
     });
+
+    // 重定向模式：只看最终落地 URL 是否是登录页
+    if (verify.login_url_pattern) {
+      const finalUrl = resp.url || verify.url;
+      return !new RegExp(verify.login_url_pattern).test(finalUrl);
+    }
+
     if (!resp.ok) return false;
     if (!verify.success_path) return true;
 
@@ -666,6 +691,8 @@ async function verifyLoginViaApi(verify, slug) {
   } catch (e) {
     console.warn(`[ServiceWorker] verify 请求失败 (${slug}):`, e.message);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -827,17 +854,19 @@ async function handleMessage(message, sender) {
             const cookies = await chrome.cookies.getAll({ url: checkUrl });
             let loggedIn = cookies.some((c) => c.name === loginCookie);
 
-            // Optional server verify (defeats stale cookies). Network error
-            // returns null and keeps the cookie-based result.
+            // 服务端二次校验：cookie 存在不等于会话有效（后台登出、异地登录、
+            // token 撤销都会让服务端会话失效而 cookie 仍留在浏览器里）。
+            // 返回 null 表示网络异常/超时，此时保留 cookie 判定避免断网误报。
+            let verified = null;
             if (loggedIn && verify && verify.url) {
-              const verified = await verifyLoginViaApi(verify, platform.slug);
+              verified = await verifyLoginViaApi(verify, platform.slug);
               if (verified === false) loggedIn = false;
             }
 
-            return { slug: platform.slug, name: platform.name, loggedIn };
+            return { slug: platform.slug, name: platform.name, loggedIn, verified };
           } catch (e) {
             console.warn(`[ServiceWorker] cookie 获取失败 (${platform.slug}):`, e);
-            return { slug: platform.slug, name: platform.name, loggedIn: false };
+            return { slug: platform.slug, name: platform.name, loggedIn: false, verified: null };
           }
         })
       );

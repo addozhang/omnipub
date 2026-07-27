@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const API_BASE = "http://localhost:3000";
 
-const createFetchResponse = ({ ok = true, status = 200, json, text }) => ({
+const createFetchResponse = ({ ok = true, status = 200, json, text, url }) => ({
   ok,
   status,
+  url,
   json: vi.fn(async () => json),
   text: vi.fn(async () => text ?? ""),
 });
@@ -271,6 +272,31 @@ describe("service-worker", () => {
             login_cookie: "PHPSESSID",
           },
         },
+        {
+          slug: "tencent-cloud",
+          name: "腾讯云",
+          loginCheck: {
+            check_url: "https://cloud.tencent.com/developer",
+            login_cookie: "qcommunity_session",
+            verify: {
+              url: "https://cloud.tencent.com/developer/article/write",
+              login_url_pattern: "cloud\\.tencent\\.com/login",
+            },
+          },
+        },
+        {
+          slug: "csdn",
+          name: "CSDN",
+          loginCheck: {
+            check_url: "https://mp.csdn.net",
+            login_cookie: "UserToken",
+            verify: {
+              url: "https://msg.csdn.net/v1/web/message/view/unread",
+              method: "POST",
+              success_path: "data.avatarUrl",
+            },
+          },
+        },
       ];
     });
 
@@ -425,6 +451,198 @@ describe("service-worker", () => {
         expect(result.results.every((r) => r.loggedIn === false)).toBe(true);
       } finally {
         globalThis.importScripts = origImport;
+      }
+    });
+  });
+
+  describe("checkLogin — 重定向校验模式", () => {
+    beforeEach(() => {
+      globalThis.PLATFORM_CONFIGS = [
+        {
+          slug: "tencent-cloud",
+          name: "腾讯云",
+          loginCheck: {
+            check_url: "https://cloud.tencent.com/developer",
+            login_cookie: "qcommunity_session",
+            verify: {
+              url: "https://cloud.tencent.com/developer/article/write",
+              login_url_pattern: "cloud\\.tencent\\.com/login",
+            },
+          },
+        },
+      ];
+    });
+
+    const tencent = { slug: "tencent-cloud", name: "腾讯云" };
+
+    it("cookie 残留但被 302 到登录页时判定为未登录", async () => {
+      chrome.cookies.getAll.mockResolvedValueOnce([
+        { name: "qcommunity_session", value: "stale" },
+      ]);
+      global.fetch.mockResolvedValueOnce(
+        createFetchResponse({
+          url: "https://cloud.tencent.com/login?s_url=https%3A%2F%2Fcloud.tencent.com",
+          text: "<html>登录</html>",
+        })
+      );
+      const { messageHandler } = await loadServiceWorker();
+
+      const result = await callHandler(messageHandler, {
+        action: "checkLogin",
+        platforms: [tencent],
+      });
+
+      expect(result.results[0].loggedIn).toBe(false);
+      expect(result.results[0].verified).toBe(false);
+    });
+
+    it("未被重定向到登录页时判定为已登录", async () => {
+      chrome.cookies.getAll.mockResolvedValueOnce([
+        { name: "qcommunity_session", value: "fresh" },
+      ]);
+      global.fetch.mockResolvedValueOnce(
+        createFetchResponse({
+          url: "https://cloud.tencent.com/developer/article/write",
+          text: "<html>写文章</html>",
+        })
+      );
+      const { messageHandler } = await loadServiceWorker();
+
+      const result = await callHandler(messageHandler, {
+        action: "checkLogin",
+        platforms: [tencent],
+      });
+
+      expect(result.results[0].loggedIn).toBe(true);
+      expect(result.results[0].verified).toBe(true);
+    });
+
+    it("重定向模式下即使 HTTP 200 也不会被误判（只看最终 URL）", async () => {
+      // 登录页本身返回 200，若沿用 resp.ok 判断会误报已登录
+      chrome.cookies.getAll.mockResolvedValueOnce([
+        { name: "qcommunity_session", value: "stale" },
+      ]);
+      global.fetch.mockResolvedValueOnce(
+        createFetchResponse({
+          ok: true,
+          status: 200,
+          url: "https://cloud.tencent.com/login",
+        })
+      );
+      const { messageHandler } = await loadServiceWorker();
+
+      const result = await callHandler(messageHandler, {
+        action: "checkLogin",
+        platforms: [tencent],
+      });
+
+      expect(result.results[0].loggedIn).toBe(false);
+    });
+  });
+
+  describe("checkLogin — verify 请求细节", () => {
+    beforeEach(() => {
+      globalThis.PLATFORM_CONFIGS = [
+        {
+          slug: "csdn",
+          name: "CSDN",
+          loginCheck: {
+            check_url: "https://mp.csdn.net",
+            login_cookie: "UserToken",
+            verify: {
+              url: "https://msg.csdn.net/v1/web/message/view/unread",
+              method: "POST",
+              success_path: "data.avatarUrl",
+            },
+          },
+        },
+      ];
+    });
+
+    const csdn = { slug: "csdn", name: "CSDN" };
+
+    it("按配置发送 POST 并带上 credentials", async () => {
+      chrome.cookies.getAll.mockResolvedValueOnce([{ name: "UserToken", value: "t" }]);
+      global.fetch.mockResolvedValueOnce(
+        createFetchResponse({
+          json: { code: "0", data: { avatarUrl: "https://x/a.jpg" } },
+        })
+      );
+      const { messageHandler } = await loadServiceWorker();
+
+      const result = await callHandler(messageHandler, {
+        action: "checkLogin",
+        platforms: [csdn],
+      });
+
+      expect(result.results[0].loggedIn).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://msg.csdn.net/v1/web/message/view/unread",
+        expect.objectContaining({
+          method: "POST",
+          credentials: "include",
+          redirect: "follow",
+        })
+      );
+    });
+
+    it("嵌套 success_path 取不到值时判定为未登录", async () => {
+      // CSDN 未登录时 data 为空，此时不能因为 code=="0" 就判定已登录
+      chrome.cookies.getAll.mockResolvedValueOnce([{ name: "UserToken", value: "stale" }]);
+      global.fetch.mockResolvedValueOnce(
+        createFetchResponse({ json: { code: "0", data: {} } })
+      );
+      const { messageHandler } = await loadServiceWorker();
+
+      const result = await callHandler(messageHandler, {
+        action: "checkLogin",
+        platforms: [csdn],
+      });
+
+      expect(result.results[0].loggedIn).toBe(false);
+    });
+
+    it("verify 请求带 AbortSignal（防止 SW 被挂起的请求拖死）", async () => {
+      chrome.cookies.getAll.mockResolvedValueOnce([{ name: "UserToken", value: "t" }]);
+      global.fetch.mockResolvedValueOnce(
+        createFetchResponse({ json: { data: { avatarUrl: "x" } } })
+      );
+      const { messageHandler } = await loadServiceWorker();
+
+      await callHandler(messageHandler, { action: "checkLogin", platforms: [csdn] });
+
+      const opts = global.fetch.mock.calls[0][1];
+      expect(opts.signal).toBeInstanceOf(AbortSignal);
+    });
+  });
+
+  describe("PLATFORM_CONFIGS 完整性", () => {
+    it("每个平台都必须配置 verify，否则 cookie 残留会导致登录态误判", async () => {
+      vi.resetModules();
+      delete globalThis.PLATFORM_CONFIGS;
+      await import("../../config/platforms.js");
+      const configs = globalThis.PLATFORM_CONFIGS;
+
+      expect(configs.length).toBeGreaterThan(0);
+      const missing = configs
+        .filter((c) => !c.loginCheck?.verify?.url)
+        .map((c) => c.slug);
+      expect(missing).toEqual([]);
+    });
+
+    it("每个 verify 必须能给出明确判定依据", async () => {
+      vi.resetModules();
+      delete globalThis.PLATFORM_CONFIGS;
+      await import("../../config/platforms.js");
+
+      for (const c of globalThis.PLATFORM_CONFIGS) {
+        const v = c.loginCheck.verify;
+        const hasSignal =
+          "success_path" in v || "login_url_pattern" in v || Object.keys(v).length === 1;
+        expect(hasSignal, `${c.slug} 的 verify 缺少判定依据`).toBe(true);
+        if (v.login_url_pattern) {
+          expect(() => new RegExp(v.login_url_pattern)).not.toThrow();
+        }
       }
     });
   });

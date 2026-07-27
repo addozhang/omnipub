@@ -605,21 +605,49 @@ Settings.vue → dispatchEvent("omnipub:check-login", { platforms })
   ▼
 main-world-bridge.js → postMessage
   ▼
-page-bridge.js handleCheckLogin():
-  遍历每个平台:
-    chrome.cookies.getAll({ url: login_check_config.check_url })
-    ├─ 有 login_cookie 字段 → 检查是否存在该名称的 cookie
-    └─ 无 login_cookie → 只要有任意 cookie 就认为已登录
+page-bridge.js handleCheckLogin() → chrome.runtime.sendMessage({ action: "checkLogin" })
   ▼
-  dispatchEvent("omnipub:check-login-result", { results: [{ slug, name, loggedIn }] })
+service-worker.js checkLogin（在 SW 中执行以确保 cookie 可访问）:
+  遍历每个平台（读 extension/config/platforms.js 的 loginCheck）:
+    1. chrome.cookies.getAll({ url: check_url })
+       └─ 必须同时配了 check_url 和 login_cookie，否则直接判未登录
+    2. cookie 命中后走 verify 做服务端二次校验（每个平台都必须配）:
+       ├─ API 模式    { url, method?, headers?, success_path?, success_value? }
+       └─ 重定向模式  { url, login_url_pattern }  请求需登录页面，看是否被 302 到登录页
+    3. verify 返回 false → 未登录；返回 null（超时/网络异常）→ 保留 cookie 判定
+  ▼
+  dispatchEvent("omnipub:check-login-result", { results: [{ slug, name, loggedIn, verified }] })
   ▼
 Settings.vue 接收结果，逐平台显示登录状态横幅
 ```
 
+**为什么必须有 verify：**
+
+cookie 存在 ≠ 会话有效。后台登出、异地登录、服务端 token 撤销都会让会话失效，但
+cookie 仍留在浏览器里直到自身过期。纯 cookie 判断此时会误报「已登录」。
+
+**各平台校验方式：**
+
+| 平台 | 模式 | 判定依据 |
+|---|---|---|
+| juejin | API | `api.juejin.cn/user_api/v1/user/get` → `data.user_id` |
+| csdn | API | `msg.csdn.net/v1/web/message/view/unread`（POST）→ `data.avatarUrl` |
+| zhihu | API | `www.zhihu.com/api/v4/me` → `id` |
+| cnblogs | API | `i.cnblogs.com/api/user` → 仅 HTTP 2xx（未登录 401） |
+| toutiao | API | `mp.toutiao.com/mp/agw/media/get_media_info/` → `err_no === 0` |
+| oschina | API | `apiv1.oschina.net/oschinapi/user/myDetails` → `success === true` |
+| infoq | API | `xie.infoq.cn/public/v1/user/get_user`（POST）→ `data.uid` |
+| bilibili | API | `api.bilibili.com/x/web-interface/nav` → `data.isLogin === true` |
+| tencent-cloud | 重定向 | `/developer/article/write` → 落到 `cloud.tencent.com/login` 即未登录 |
+| 51cto | 重定向 | `/blogger/publish` → 落到 `home.51cto.com` 即未登录 |
+| segmentfault | 重定向 | `/write` → 落到 `segmentfault.com/user/login` 即未登录 |
+
 **关键约束：**
 - `check_url` 的域名必须与 `manifest.json` 的 `host_permissions` 匹配，否则 `chrome.cookies.getAll` 返回空数组
 - Cookie domain 设置为 `.example.com` 的 cookie 可从 `sub.example.com` 读取
-- 所有检测通过 cookie API 完成，不发起 HTTP 请求
+- 重定向模式只对**服务端 302** 有效。SPA 前端路由跳转不体现在 `resp.url` 上，这类平台只能用 API 模式
+- verify 接口必须能被扩展**裸调用**（不带页面签名头）。CSDN 的 `bizapi.csdn.net` 需要 `X-Ca-Key` 签名，扩展调用返回 401，故改用 `msg.csdn.net`
+- verify 请求有 8s 超时，超时视为「未知」而非「未登录」，避免断网时全部误报
 
 ---
 

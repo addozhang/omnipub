@@ -43,7 +43,7 @@ export const PLATFORM_SESSIONS: PlatformSession[] = [
   { slug: "zhihu", name: "知乎", checkUrl: "https://zhuanlan.zhihu.com", cookieName: "z_c0" },
   { slug: "cnblogs", name: "博客园", checkUrl: "https://i.cnblogs.com", cookieName: ".CNBlogsCookie" },
   { slug: "toutiao", name: "今日头条", checkUrl: "https://mp.toutiao.com", cookieName: "sid_tt" },
-  { slug: "tencent-cloud", name: "腾讯云", checkUrl: "https://cloud.tencent.com", cookieName: "qcloud_uid" },
+  { slug: "tencent-cloud", name: "腾讯云", checkUrl: "https://cloud.tencent.com/developer", cookieName: "qcommunity_session" },
   { slug: "51cto", name: "51CTO", checkUrl: "https://blog.51cto.com", cookieName: "pub_sauth1" },
   { slug: "segmentfault", name: "思否", checkUrl: "https://segmentfault.com", cookieName: "PHPSESSID" },
   { slug: "oschina", name: "开源中国", checkUrl: "https://my.oschina.net", cookieName: "oscid" },
