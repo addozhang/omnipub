@@ -398,6 +398,43 @@
     }
 
     /**
+     * 获取当前用户的博客目录 ID。
+     *
+     * 2026-05 前后 OSCHINA 改版，发布 API 把 catalog 变成必填参数，
+     * 旧代码硬编码 catalog: 0 会被拒绝：
+     *   {"success":false,"message":"catalog: 目录 ID 不能为空","code":500}
+     *
+     * 优先使用文章数最多的目录（通常是用户的主力目录），退化到第一个。
+     */
+    async _resolveCatalogId() {
+      if (this._catalogId) return this._catalogId;
+
+      try {
+        const resp = await fetch(
+          "https://apiv1.oschina.net/oschinapi/blog_catalog/list_by_user",
+          {
+            credentials: "include",
+            headers: { Accept: "application/json", Referer: "https://my.oschina.net/" },
+          }
+        );
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const json = await resp.json();
+        const list = json?.result || [];
+        if (!list.length) throw new Error("目录列表为空");
+
+        const best = list.reduce(
+          (a, b) => ((b.blogCount || 0) > (a.blogCount || 0) ? b : a),
+          list[0]
+        );
+        this._catalogId = best.id;
+        log(`[oschina] 使用目录: ${best.name} (id=${best.id}, ${best.blogCount} 篇)`);
+        return this._catalogId;
+      } catch (e) {
+        throw new Error(`获取 OSCHINA 博客目录失败: ${e.message}`);
+      }
+    }
+
+    /**
      * afterFill: 直接调用 OSCHINA 发布 API。
      *
      * OSCHINA 的"发布文章"按钮使用 Ant Design Popconfirm 组件，但在扩展自动化环境下
@@ -409,41 +446,37 @@
      * Auth: Cookie (withCredentials: true, oscid cookie)
      * Payload: { title, content, contentType, type, user, privacy, disableComment, catalog }
      *   - contentType: 0=HTML, 1=Markdown
+     *   - catalog: 必填，见 _resolveCatalogId()
      * Success: { code: 200, result: blogId }
+     *
+     * 内容直接取 articleData.markdown 而非编辑器 DOM：新版 ai-write 编辑器
+     * 移除了 Markdown tab，只剩 ProseMirror，而 ProseMirror 导出的 HTML 会让
+     * 代码块渲染成空块且语言识别错误。直接提交 markdown 原文可以完全绕开。
      */
     async afterFill() {
       log("[oschina] 使用直接 API 调用发布...");
 
       const API_BASE = "https://apiv1.oschina.net/oschinapi";
 
-      let content;
-      let contentType;
+      let content = this.articleData?.markdown || "";
+      let contentType = 1; // 1=Markdown
 
-      if (this._useMdEditor) {
-        // Markdown 模式：从 textarea 获取 markdown 原文
-        const textarea = document.querySelector("textarea");
-        content = textarea?.value || this.articleData?.markdown || "";
-        contentType = 1; // 1=Markdown
-        log("[oschina] 使用 Markdown 模式提交, 内容长度: " + content.length);
-      } else {
-        // HTML 模式（降级）：从 ProseMirror 获取 HTML
+      if (!content.trim()) {
+        // 极端降级：articleData 没带 markdown 时才回退到编辑器 DOM
         const editor =
           document.querySelector(".ProseMirror") ||
           document.querySelector(".tiptap") ||
           document.querySelector('[contenteditable="true"]');
-
-        if (!editor) {
-          throw new Error("未找到编辑器，无法获取内容");
-        }
-
+        if (!editor) throw new Error("未找到编辑器，无法获取内容");
         content = editor.innerHTML;
         contentType = 0; // 0=HTML
-        log("[oschina] 使用 HTML 模式提交, 内容长度: " + content.length);
+        log("[oschina] articleData 无 markdown，降级到 HTML 模式");
       }
 
       if (!content || content.trim().length < 10) {
         throw new Error("编辑器内容为空或过短");
       }
+      log(`[oschina] 提交内容 contentType=${contentType}, 长度=${content.length}`);
 
       // 从 DOM 获取标题
       const titleInput = document.querySelector(
@@ -457,12 +490,12 @@
       }
 
       // E-7: Multi-strategy UID extraction (URL → DOM → API).
-      // afterFill() always runs on /u/{uid}/blog/write, but we add DOM and API
-      // fallbacks to guard against edge-case redirect races.
       const uid = await this._resolveUid();
       if (!uid) {
         throw new Error("无法获取用户 UID（URL/DOM/API 均失败）");
       }
+
+      const catalog = await this._resolveCatalogId();
 
       const payload = {
         title: title.trim(),
@@ -470,7 +503,7 @@
         contentType: contentType,
         type: "1", // 原创
         originUrl: "",
-        catalog: 0,
+        catalog: catalog,
         privacy: true, // "是否公开" checkbox: true=公开, false=私密
         disableComment: false, // "是否禁用评论" checkbox: true=禁用, false=允许
         user: uid,

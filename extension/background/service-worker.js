@@ -1455,18 +1455,19 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 
-  // OSChina 特殊处理：/blog/write 可能被重定向到 /u/{uid}/ 或 /
+  // OSChina 特殊处理：/blog/write 已下线（返回「找不到页面」），新入口是
+  // /u/{uid}/blog/ai-write；直接打开仍会被重定向到 /u/{uid}/ 或 /
   // 需要检测这种重定向并导航到正确的编辑器 URL
   if (tabInfo.platform.slug === "oschina" && currentUrl && !tabInfo.oschinaRedirected) {
     // 宽松匹配：/u/{uid} 后面可以跟任意内容（查询参数、额外路径等）
     const uidMatch = currentUrl.match(/^https:\/\/my\.oschina\.net\/u\/(\d+)/);
-    const isEditorUrl = currentUrl.includes("/blog/write");
+    const isEditorUrl = /\/blog\/(write|ai-write)/.test(currentUrl);
     const homepageMatch = currentUrl.match(/^https:\/\/my\.oschina\.net\/?(\?.*)?$/);
 
     if (uidMatch && !isEditorUrl) {
       // Pattern 1: 重定向到了 /u/{uid}/... 但不是编辑器页面
       const uid = uidMatch[1];
-      const correctUrl = `https://my.oschina.net/u/${uid}/blog/write`;
+      const correctUrl = `https://my.oschina.net/u/${uid}/blog/ai-write`;
       log(`[ServiceWorker] OSChina 重定向到用户主页，导航到编辑器: ${correctUrl}`);
       tabInfo.oschinaRedirected = true;
       tabInfo.messageSentUrl = null;
@@ -1501,7 +1502,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
       const uid = await extractOschinaUid();
       if (uid) {
-        const correctUrl = `https://my.oschina.net/u/${uid}/blog/write`;
+        const correctUrl = `https://my.oschina.net/u/${uid}/blog/ai-write`;
         log(`[ServiceWorker] OSChina navigating to editor: ${correctUrl}`);
         tabInfo.messageSentUrl = null;
         chrome.tabs.update(tabId, { url: correctUrl });

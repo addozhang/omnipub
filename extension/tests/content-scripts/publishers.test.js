@@ -104,4 +104,54 @@ describe("content script publishers", () => {
       true
     );
   });
+
+  describe("oschina 目录解析", () => {
+    const loadOschina = () =>
+      loadPublisher("../../content-scripts/publishers/oschina.js");
+
+    it("选择文章数最多的目录（发布 API 要求 catalog 必填）", async () => {
+      const instance = await loadOschina();
+      global.fetch = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          success: true,
+          result: [
+            { id: 7274280, name: "工作日志", blogCount: 0 },
+            { id: 7274281, name: "日常记录", blogCount: 81 },
+            { id: 12527182, name: "笔记", blogCount: 3 },
+          ],
+        }),
+      }));
+
+      await expect(instance._resolveCatalogId()).resolves.toBe(7274281);
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://apiv1.oschina.net/oschinapi/blog_catalog/list_by_user",
+        expect.objectContaining({ credentials: "include" })
+      );
+    });
+
+    it("目录 ID 只解析一次并缓存", async () => {
+      const instance = await loadOschina();
+      global.fetch = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ result: [{ id: 42, name: "x", blogCount: 1 }] }),
+      }));
+
+      await instance._resolveCatalogId();
+      await instance._resolveCatalogId();
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("目录列表为空时抛错而不是回退到 catalog=0", async () => {
+      // 回归测试：旧实现硬编码 catalog: 0，改版后被 API 拒绝
+      // {"message":"catalog: 目录 ID 不能为空","code":500}
+      const instance = await loadOschina();
+      global.fetch = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ result: [] }),
+      }));
+
+      await expect(instance._resolveCatalogId()).rejects.toThrow("目录列表为空");
+    });
+  });
 });

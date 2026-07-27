@@ -83,7 +83,7 @@ SEED_PLATFORMS = [
         "name": "开源中国",
         "slug": "oschina",
         "icon_url": "https://www.oschina.net/favicon.ico",
-        "new_article_url": "https://my.oschina.net/blog/write",
+        "new_article_url": "https://my.oschina.net/blog/ai-write",
         "article_url_pattern": "https://my.oschina.net/{username}/blog/{article_id}",
     },
     {

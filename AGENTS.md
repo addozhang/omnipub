@@ -327,7 +327,7 @@ await browser.close(); // 仅断开连接，不关闭浏览器
 | 51CTO | 51cto | ✅ | markdown textarea | 已验证 | — |
 | 思否 | segmentfault | ✅ | markdown textarea | 已验证 | — |
 | 哔哩哔哩 | bilibili | ✅ | TipTap/ProseMirror (iframe) | 已验证 | 编辑器在 iframe (`york/read-editor`) 内；`all_frames: true`；剥离外部 `<img>` 标签；一步发布 |
-| 开源中国 | oschina | ✅ | Markdown textarea（Ant Tabs 切换） | 已验证 | 重定向 + 向导关闭 + Markdown 模式 API 发布 |
+| 开源中国 | oschina | ✅ | ProseMirror（内容走 API 不依赖编辑器） | 已验证 | ai-write 入口 + 重定向 + 向导关闭 + catalog + Markdown API 发布 |
 | InfoQ | infoq | ✅ | ProseMirror | 已验证 | 需创建草稿 + 弹窗关闭 |
 | 腾讯云 | tencent-cloud | ✅ | markdown textarea | 未验证 | Session 容易过期 |
 | ITPUB | itpub | ✅ | Layui 富文本 | 跳过 | 网站无法访问；Publisher 已实现（UEditor bridge + Layui form） |
@@ -551,13 +551,15 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 ### 平台特殊发布流程
 
 #### OSCHINA（开源中国）
-- **URL 重定向**：`/blog/write` 会重定向到 `/u/{uid}/` 或 `/`，service worker 的 `tabs.onUpdated` 拦截重定向，提取 UID 后导航到 `/u/{uid}/blog/write`
+- **编辑器入口（2026-05 改版）**：`/blog/write` 已下线（访问返回「找不到您访问的页面」），新入口是 `/u/{uid}/blog/ai-write`
+- **URL 重定向**：直接打开 `/blog/ai-write` 仍会被重定向到 `/u/{uid}/` 或 `/`，service worker 的 `tabs.onUpdated` 拦截重定向，提取 UID 后导航到 `/u/{uid}/blog/ai-write`
 - **UID 提取策略**：(1) 从重定向 URL `/u/{uid}/` 直接提取；(2) 回退到 API `GET /action/apiv2/user/myself`
 - **全文写作向导**：编辑器打开后显示 AI 写作向导覆盖层，`beforeFill()` 点击"关闭引导"按钮关闭
-- **Markdown 编辑器切换**：编辑器页面有 Ant Tabs（`HTML编辑器` / `Markdown`），`beforeFill()` 点击 `.ant-tabs-tab-btn` 中文本为 "Markdown" 的 tab 切换到 Markdown 模式，ProseMirror 消失、textarea 出现
-- **Markdown 模式填充**：切换后直接填充 `textarea`（raw markdown），不经过 ProseMirror 粘贴流程。如果 Markdown tab 未找到则降级回 ProseMirror HTML 模式
-- **API 发布**：`POST https://apiv1.oschina.net/oschinapi/blog/web/add`，`contentType: 1`（Markdown）或 `contentType: 0`（HTML 降级），`privacy: true`=公开，`disableComment: false`=允许评论
+- **catalog 必填（2026-05 改版）**：发布 API 新增必填参数 `catalog`（博客目录 ID），传 0 会被拒绝：`{"message":"catalog: 目录 ID 不能为空","code":500}`。`_resolveCatalogId()` 通过 `GET /oschinapi/blog_catalog/list_by_user` 获取，取文章数最多的目录
+- **内容直接取 markdown**：新版 ai-write 编辑器移除了 Markdown tab（只剩 ProseMirror），`afterFill()` 直接提交 `articleData.markdown` + `contentType: 1`，完全不依赖编辑器 DOM
+- **API 发布**：`POST https://apiv1.oschina.net/oschinapi/blog/web/add`，`contentType: 1`（Markdown）或 `contentType: 0`（HTML 降级），`catalog`=目录 ID，`privacy: true`=公开，`disableComment: false`=允许评论
 - **为什么不用 HTML 模式**：ProseMirror HTML 模式发布后，代码块渲染为空/折叠（只显示 hljs 工具栏按钮），且语言识别错误（如 Python → `language-routeros`）。Markdown 模式代码块渲染完全正确
+- **发布频率限制**：连续发布约 6 篇后 API 返回 `{"message":"用户被封禁","code":40005}`，需等待解除。批量补发时务必放慢节奏
 
 #### InfoQ（极客时间写作平台）
 - **草稿创建**：必须先通过 `POST /api/v1/draft/create`（需 cookie 认证）创建草稿，获取 draftId，再导航到 `/draft/{draftId}` 编辑器
@@ -744,7 +746,9 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **afterFill() 后立即报告成功**：不能在 afterFill() 后等待页面跳转，因为 content script 上下文会被销毁
 - **扩展 service worker 缓存**：修改扩展代码后调试需要清除 `Service Worker/` 和 `Local Extension Settings/` 缓存目录
 - **axios interceptor 自动 unwrap**：`frontend/src/api/index.js` 的响应拦截器做了 `res => res.data`，API 调用返回值直接是 `{ success, data, message }` 而非 axios Response 对象
-- **OSCHINA /blog/write 重定向**：直接打开 `/blog/write` 会重定向到首页或用户主页，必须通过 service worker 拦截重定向并提取 UID 后导航到 `/u/{uid}/blog/write`
+- **OSCHINA `/blog/write` 已下线**：2026-05 改版后该路径返回「找不到您访问的页面」，新入口是 `/u/{uid}/blog/ai-write`。直接打开仍会被重定向到首页或用户主页，必须通过 service worker 拦截重定向并提取 UID 后导航
+- **OSCHINA catalog 必填**：发布 API 不再接受 `catalog: 0`，会返回 `{"message":"catalog: 目录 ID 不能为空","code":500}`。这是 2026-05 之后 oschina 发布批量失败的根因
+- **OSCHINA 连发会被封禁**：连续发布约 6 篇后返回 `{"message":"用户被封禁","code":40005}`，需等待解除
 - **OSCHINA 全文写作向导**：2026 年后默认显示 AI 写作向导覆盖层，必须先点击"关闭引导"才能操作编辑器
 - **InfoQ 需要先创建草稿**：`/draft/write` 页面的编辑器区域高度为 0（不可用），必须先调用 API 创建草稿获取 draftId
 - **InfoQ 功能公告弹窗**：不定期出现新功能公告弹窗，会遮挡编辑器，需要在 `beforeFill()` 中关闭
