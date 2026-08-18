@@ -324,7 +324,7 @@ await browser.close(); // 仅断开连接，不关闭浏览器
 | 知乎 | zhihu | ✅ | contenteditable | 已验证 | — |
 | 博客园 | cnblogs | ✅ | TinyMCE | 已验证 | — |
 | 今日头条 | toutiao | ✅ | ProseMirror | 已验证 | 两步 API 发布 + 弹窗关闭 |
-| 51CTO | 51cto | ✅ | markdown textarea | 已验证 | — |
+| 51CTO | 51cto | ✅ | Markdown 分栏（`textarea.write-area`） | 已验证 | 内容走 `POST /blogger/publish`（`check=1` 即为发布），不点页面按钮；文章 ID 取响应 `data.blog_id`（`did` 是草稿 ID） |
 | 思否 | segmentfault | ✅ | markdown textarea | 已验证 | — |
 | 哔哩哔哩 | bilibili | ✅ | TipTap/ProseMirror (iframe) | 已验证 | 编辑器在 iframe (`york/read-editor`) 内；`all_frames: true`；剥离外部 `<img>` 标签；一步发布 |
 | 开源中国 | oschina | ✅ | ProseMirror（内容走 API 不依赖编辑器） | 已验证 | ai-write 入口 + 重定向 + 向导关闭 + catalog + Markdown API 发布 |
@@ -758,6 +758,10 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **CSDN 一步发布**：设置项在编辑器下方滚动区域（非抽屉/弹窗），`button.btn-outline-danger`（"发布博客"）一次点击直接提交；标签（`.mark_selection .el_mcm-tag`）必填，否则表单校验失败静默阻止提交
 - **CSDN API 错误无 DOM 反馈**：`saveArticle` API 返回 400（如"每日发文 5 篇上限"）时页面不显示任何错误提示，`csdn.js` 通过 MAIN world XHR 拦截器 + `postMessage` 回传检测 API 级别错误（`csdn_installSaveInterceptor`）
 - **CSDN 每日发文限制**：CSDN 限制每天最多发 5 篇文章，超限后 `saveArticle` 返回 400 但页面无任何提示
+- **51CTO 的 `did` 不是文章 ID**：`POST /blogger/publish` 成功响应是 `{ status:1, msg:"success", data:{ blog_id, request } }`，`blog_id` 才是已发布文章 ID。`submitForm.did` 是草稿 ID，用它拼 `https://blog.51cto.com/{user}/{did}` 会得到「文章不存在或已删除」
+- **51CTO 用户名不能从 innerHTML 里正则抓**：页面上有推荐文章的 `/u_15370155/14858668` 这类他人链接，宽松正则会抓到别人的 uid，拼出的文章 URL 404，用户会误以为发布失败而手动重发（产生重复文章）。只认单段路径的个人主页链接 `https://blog.51cto.com/{username}`
+- **51CTO 2026-08 编辑器改版**：正文从 `am-engine` contenteditable 换成 Markdown 分栏 `textarea.write-area`，标题从 `input.editor-title` 换成 `input.title_input`，发布面板从弹窗换成右侧抽屉。不要再强制显示抽屉（`.editor-dialog__wrapper` 置 display:block），否则用户看到一个「等待点发布」的界面，会在 API 已发布成功后再点一次，产生重复文章
+- **51CTO 分类项 ID 在 `value` 属性上**，不是 `data-id`。未配置分类时应返回空串沿用 `submitForm` 里 51CTO 记住的上次分类
 - **Bilibili 外部图片静默阻止提交**：HTML 内容中包含外部 `<img>` 标签时，B 站专栏 API 会静默阻止提交（不返回错误），publisher 中已自动剥离所有 `<img>` 标签
 - **InfoQ 页面有 16+ 个空 modal 容器**：发布确认弹窗必须通过 `.dialog-setting` 类精确定位，不能用通用的 `.modal-container` 选择器
 - **Toutiao AI 写作助手抽屉**：编辑器右侧可能弹出 AI 写作助手抽屉遮挡编辑器和发布按钮，使用 CDP fallback 可绕过

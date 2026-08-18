@@ -477,7 +477,15 @@ async function _mainWorldCodeRunner(code, args) {
         });
         const json = await resp.json();
         const articleUrl = (json.data && json.data.request) || null;
-        return JSON.stringify({ status: json.status, did: json.data && json.data.did, articleUrl, raw: json });
+        // 2026-08 起响应里是 data.blog_id（已发布文章 ID）；旧字段 did 是草稿 ID，
+        // 用它拼文章 URL 会 404。两个都带回去，由调用方优先取 blog_id。
+        return JSON.stringify({
+          status: json.status,
+          blogId: json.data && json.data.blog_id,
+          did: json.data && json.data.did,
+          articleUrl,
+          raw: json,
+        });
       } catch (err) {
         return JSON.stringify({ status: -1, did: null, error: err.message || "fetch failed" });
       }
@@ -741,6 +749,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 返回 true 表示异步响应
   return true;
 });
+
+/**
+ * 解析用于代理知乎 API 的标签页。
+ *
+ * 优先用消息发送方自己的标签页（发布流程里就是那个 zhuanlan.zhihu.com/write），
+ * 否则回退到任意已打开的知乎标签页。之前无条件取 tabs[0]，用户浏览器里恰好开着
+ * 别的知乎页面时，请求会被代理到那个页面上，行为不可预期。
+ *
+ * @param {object} sender - chrome.runtime.onMessage 的 sender
+ * @returns {Promise<chrome.tabs.Tab|null>}
+ */
+async function resolveZhihuTab(sender) {
+  const senderUrl = sender?.tab?.url || "";
+  if (sender?.tab?.id && /^https?:\/\/([^/]+\.)?zhihu\.com\//.test(senderUrl)) {
+    return sender.tab;
+  }
+  const tabs = await chrome.tabs.query({ url: "*://*.zhihu.com/*" });
+  return tabs.length > 0 ? tabs[0] : null;
+}
 
 /**
  * 异步消息处理路由
@@ -1049,11 +1076,8 @@ async function handleMessage(message, sender) {
         const apiUrl = `https://zhuanlan.zhihu.com${endpoint}`;
         console.log(`[zhihuApi] ${method} ${apiUrl}`);
 
-        let zhihuTab = null;
-        const tabs = await chrome.tabs.query({ url: "*://*.zhihu.com/*" });
-        if (tabs.length > 0) {
-          zhihuTab = tabs[0];
-        } else {
+        let zhihuTab = await resolveZhihuTab(sender);
+        if (!zhihuTab) {
           zhihuTab = await chrome.tabs.create({
             url: "https://zhuanlan.zhihu.com/write",
             active: false,
@@ -1126,11 +1150,8 @@ async function handleMessage(message, sender) {
         const { imageUrl } = message;
         console.log(`[zhihuUploadImage] Uploading: ${imageUrl}`);
 
-        let zhihuTab = null;
-        const tabs = await chrome.tabs.query({ url: "*://*.zhihu.com/*" });
-        if (tabs.length > 0) {
-          zhihuTab = tabs[0];
-        } else {
+        const zhihuTab = await resolveZhihuTab(sender);
+        if (!zhihuTab) {
           return { success: false, error: "No zhihu tab available for image upload" };
         }
 
@@ -1544,7 +1565,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     message: "正在填充内容...",
   });
 
-  const slowPlatforms = ["tencent-cloud", "infoq", "bilibili", "toutiao", "oschina", "juejin"];
+  const slowPlatforms = ["tencent-cloud", "infoq", "bilibili", "toutiao", "oschina", "juejin", "zhihu"];
   const isSlow = slowPlatforms.includes(platform.slug);
   const initialDelay = isRedirect ? 2000 : (isSlow ? 1500 : 500);
   await new Promise((r) => setTimeout(r, initialDelay));
