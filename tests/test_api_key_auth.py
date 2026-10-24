@@ -216,13 +216,31 @@ async def test_jwt_bypasses_scope_check(client: AsyncClient, auth_headers: dict)
 
 @pytest.mark.asyncio
 async def test_api_key_cannot_manage_api_keys(client: AsyncClient, auth_headers: dict):
-    """API keys should not be able to create/list other API keys.
-    The api_keys endpoints use get_current_user which accepts API keys,
-    but this verifies the behavior is defined (currently allowed since
-    no require_jwt dependency is on those endpoints)."""
+    """API keys must not create/list/regenerate/delete API keys (require_jwt enforced)."""
+    key = await _create_api_key(client, auth_headers)
+    headers = _api_key_headers(key)
+
+    resp = await client.get("/api/api-keys", headers=headers)
+    assert resp.status_code == 403
+
+    resp = await client.post("/api/api-keys", json={"name": "Escalate"}, headers=headers)
+    assert resp.status_code == 403
+
+    resp = await client.post("/api/api-keys/1/regenerate", headers=headers)
+    assert resp.status_code == 403
+
+    resp = await client.delete("/api/api-keys/1", headers=headers)
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_api_key_cannot_change_password(client: AsyncClient, auth_headers: dict):
+    """API keys must not change the account password (require_jwt enforced)."""
     key = await _create_api_key(client, auth_headers)
 
-    # API key can list keys (get_current_user accepts it)
-    resp = await client.get("/api/api-keys", headers=_api_key_headers(key))
-    # This should work since there's no require_jwt on list
-    assert resp.status_code == 200
+    resp = await client.put(
+        "/api/user/password",
+        json={"current_password": "testpassword123", "new_password": "hacked123456"},
+        headers=_api_key_headers(key),
+    )
+    assert resp.status_code == 403

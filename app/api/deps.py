@@ -117,7 +117,14 @@ def require_scope(scope: str):
     return dependency
 
 
-def require_jwt(request: Request):
+def require_jwt(request: Request, _user: User = Depends(get_current_user)):
+    """强制 JWT 认证（禁止 API Key 访问）。
+
+    必须依赖 get_current_user：装饰器 dependencies 里的独立依赖会先于
+    端点参数依赖执行，若不在此处触发认证，request.state.auth_type
+    尚未设置，检查会被默认值绕过。FastAPI 依赖缓存确保同一请求
+    get_current_user 只执行一次。
+    """
     auth_type = getattr(request.state, "auth_type", AUTH_TYPE_JWT)
     if auth_type != AUTH_TYPE_JWT:
         raise HTTPException(

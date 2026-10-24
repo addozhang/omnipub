@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, require_jwt
 from app.api.response import ok
 from app.database import get_db
 from app.models.api_key import ApiKey
@@ -54,7 +54,7 @@ def _to_created_response(key: ApiKey, raw_key: str) -> dict:
     ).model_dump()
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_jwt)])
 async def create_api_key(
     data: ApiKeyCreate,
     db: AsyncSession = Depends(get_db),
@@ -74,7 +74,7 @@ async def create_api_key(
     return ok(data=_to_created_response(api_key, raw_key), message="API key created")
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_jwt)])
 async def list_api_keys(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -88,7 +88,7 @@ async def list_api_keys(
     return ok(data=[_to_response(k) for k in keys])
 
 
-@router.post("/{key_id}/regenerate")
+@router.post("/{key_id}/regenerate", dependencies=[Depends(require_jwt)])
 async def regenerate_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db),
@@ -113,7 +113,7 @@ async def regenerate_api_key(
     return ok(data=_to_created_response(api_key, raw_key), message="API key regenerated")
 
 
-@router.delete("/{key_id}")
+@router.delete("/{key_id}", dependencies=[Depends(require_jwt)])
 async def delete_api_key(
     key_id: int,
     db: AsyncSession = Depends(get_db),
