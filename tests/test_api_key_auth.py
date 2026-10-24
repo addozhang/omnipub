@@ -244,3 +244,65 @@ async def test_api_key_cannot_change_password(client: AsyncClient, auth_headers:
         headers=_api_key_headers(key),
     )
     assert resp.status_code == 403
+
+
+# ── Scope enforcement on article mutations ──────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_api_key_cannot_update_article(client: AsyncClient, auth_headers: dict):
+    """API key with only articles:create scope gets 403 on PUT /api/articles/{id}."""
+    key = await _create_api_key(client, auth_headers)
+
+    create = await client.post(
+        "/api/articles",
+        json={"title": "Scope Test", "markdown_content": "# hi"},
+        headers=auth_headers,
+    )
+    article_id = create.json()["data"]["id"]
+
+    resp = await client.put(
+        f"/api/articles/{article_id}",
+        json={"title": "Hacked"},
+        headers=_api_key_headers(key),
+    )
+    assert resp.status_code == 403
+    assert "scope" in resp.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_api_key_cannot_delete_article(client: AsyncClient, auth_headers: dict):
+    """API key with only articles:create scope gets 403 on DELETE /api/articles/{id}."""
+    key = await _create_api_key(client, auth_headers)
+
+    create = await client.post(
+        "/api/articles",
+        json={"title": "Scope Test", "markdown_content": "# hi"},
+        headers=auth_headers,
+    )
+    article_id = create.json()["data"]["id"]
+
+    resp = await client.delete(
+        f"/api/articles/{article_id}", headers=_api_key_headers(key)
+    )
+    assert resp.status_code == 403
+    assert "scope" in resp.json()["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_jwt_can_update_and_delete_article(client: AsyncClient, auth_headers: dict):
+    """JWT bypasses scope checks — PUT/DELETE still work for JWT sessions."""
+    create = await client.post(
+        "/api/articles",
+        json={"title": "JWT Scope", "markdown_content": "# hi"},
+        headers=auth_headers,
+    )
+    article_id = create.json()["data"]["id"]
+
+    resp = await client.put(
+        f"/api/articles/{article_id}", json={"title": "JWT Updated"}, headers=auth_headers
+    )
+    assert resp.status_code == 200
+
+    resp = await client.delete(f"/api/articles/{article_id}", headers=auth_headers)
+    assert resp.status_code == 200

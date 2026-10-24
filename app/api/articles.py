@@ -48,7 +48,7 @@ async def get_one(
     return ok(data=ArticleResponse.model_validate(article).model_dump())
 
 
-@router.put("/{article_id}")
+@router.put("/{article_id}", dependencies=[Depends(require_scope("articles:update"))])
 async def update(
     article_id: int,
     data: ArticleUpdate,
@@ -59,7 +59,7 @@ async def update(
     return ok(data=ArticleResponse.model_validate(article).model_dump(), message="Article updated")
 
 
-@router.delete("/{article_id}")
+@router.delete("/{article_id}", dependencies=[Depends(require_scope("articles:delete"))])
 async def delete(
     article_id: int,
     db: AsyncSession = Depends(get_db),
