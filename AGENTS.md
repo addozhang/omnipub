@@ -440,9 +440,10 @@ cd frontend && npx playwright test --reporter=line
 ### 认证
 
 - JWT Bearer token，存在 `localStorage("token")`
-- API Key 双轨认证：`deps.py` 中 `get_current_user()` 同时支持 JWT Bearer 和 `X-API-Key` header
-- `require_scope("articles:create")` 限制 API Key 可访问的端点范围
-- `require_jwt()` 强制仅 JWT 认证（API Key 管理等敏感端点）
+- API Key 双轨认证：`deps.py` 中 `get_current_user()` 同时支持 JWT Bearer 和 `X-API-Key` header（API Key 可通过任一通道传递：`Authorization: Bearer omnk_xxx` 或 `X-API-Key: omnk_xxx`）
+- `require_scope()` 限制 API Key 可访问的端点范围：`articles:create`（POST）、`articles:update`（PUT）、`articles:delete`（DELETE）；JWT 认证始终绕过 scope 检查
+- `require_jwt()` 强制仅 JWT 认证，已挂载于 API Key 管理（`/api/api-keys` 全部端点）和修改密码（`/api/user/password`）等敏感端点
+- **注意**：`require_jwt()` 内部依赖 `get_current_user()`——装饰器 `dependencies` 中的独立依赖先于端点参数依赖执行，若不先触发认证，`request.state.auth_type` 未设置会被默认值绕过（历史坑，已修复）
 - 401 interceptor 在 `frontend/src/api/index.js`，**登录页不触发重定向**（避免清除错误状态）
 - 登录时自动通过 `omnipub:set-token` CustomEvent 同步 token 到扩展 service worker
 - 扩展长期 session 通过 `/api/auth/create-chrome-session` 获取（独立过期时间）

@@ -306,3 +306,36 @@ async def test_jwt_can_update_and_delete_article(client: AsyncClient, auth_heade
 
     resp = await client.delete(f"/api/articles/{article_id}", headers=auth_headers)
     assert resp.status_code == 200
+
+
+# ── X-API-Key header channel ────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_x_api_key_header_auth(client: AsyncClient, auth_headers: dict):
+    """API key works via X-API-Key header as well as Authorization Bearer."""
+    key = await _create_api_key(client, auth_headers)
+
+    resp = await client.get("/api/articles", headers={"X-API-Key": key})
+    assert resp.status_code == 200
+
+    resp = await client.post(
+        "/api/articles",
+        json={"title": "Header Auth", "markdown_content": "# hi"},
+        headers={"X-API-Key": key},
+    )
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_invalid_x_api_key_header_returns_401(client: AsyncClient):
+    """A malformed X-API-Key value (wrong prefix) is rejected with 401."""
+    resp = await client.get("/api/articles", headers={"X-API-Key": "not-a-valid-key"})
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_missing_credentials_returns_401(client: AsyncClient):
+    """No Authorization header and no X-API-Key → 401."""
+    resp = await client.get("/api/articles")
+    assert resp.status_code == 401

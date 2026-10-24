@@ -1,7 +1,7 @@
 import datetime
 import json
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,7 @@ from app.models.api_key import ApiKey
 from app.models.user import User
 from app.utils.security import decode_access_token, verify_password
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 API_KEY_PREFIX = "omnk_"
 
@@ -21,9 +21,25 @@ AUTH_TYPE_API_KEY = "api_key"
 
 async def get_current_user(
     request: Request,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    # API Key 双通道：X-API-Key header（优先）或 Authorization: Bearer omnk_...
+    if x_api_key:
+        if x_api_key.startswith(API_KEY_PREFIX):
+            return await _authenticate_api_key(request, x_api_key, db)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
     token = credentials.credentials
 
     if token.startswith(API_KEY_PREFIX):
