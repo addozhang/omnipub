@@ -129,6 +129,12 @@
         throw e;
       }
 
+      // portal 的 DOM 更新可能早于 XHR load 事件，等拦截器记录完成（最多 2.5s）
+      const capDeadline = Date.now() + 2500;
+      while (!window.__omnipubTcCapture && Date.now() < capDeadline) {
+        await this.delay(200);
+      }
+
       const cap = window.__omnipubTcCapture;
       if (cap && cap.articleUrl) {
         log("addArticle 确认成功:", cap.articleUrl);
