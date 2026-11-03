@@ -315,21 +315,21 @@ await browser.close(); // 仅断开连接，不关闭浏览器
 | 开源中国 | oschina | — | 需登录 |
 | 腾讯云 | tencent-cloud | — | 需登录 |
 
-### 平台 Publisher 验证状态（2026-03）
+### 平台 Publisher 验证状态（2026-11）
 
 | 平台 | slug | Publisher | 编辑器类型 | 验证状态 | 特殊处理 |
 |---|---|---|---|---|---|
 | 掘金 | juejin | ✅ | ByteMD (CodeMirror) | 已验证 | 两步发布：点击"发布"→ 设置面板选分类/标签 → 点击"确定并发布"；图片自动转存到掘金 CDN；分类和标签必填 |
-| CSDN | csdn | ✅ | CKEditor 4 iframe | 已验证 | `CKEDITOR.instances[].setData()`；一步发布（设置项在编辑器下方滚动区域）；标签必填 |
+| CSDN | csdn | ✅ | CKEditor 4 iframe | 已验证 | `CKEDITOR.instances[].setData()`；一步发布（设置项在编辑器下方滚动区域）；标签必填；**开源推广类内容会被异步审核拒绝（「审核未通过」），发布时无法检测** |
 | 知乎 | zhihu | ✅ | contenteditable | 已验证 | — |
 | 博客园 | cnblogs | ✅ | TinyMCE | 已验证 | — |
 | 今日头条 | toutiao | ✅ | ProseMirror | 已验证 | 两步 API 发布 + 弹窗关闭 |
-| 51CTO | 51cto | ✅ | Markdown 分栏（`textarea.write-area`） | 已验证 | 内容走 `POST /blogger/publish`（`check=1` 即为发布），不点页面按钮；文章 ID 取响应 `data.blog_id`（`did` 是草稿 ID） |
+| 51CTO | 51cto | ✅ | Markdown 分栏（`textarea.write-area`） | 已验证 | 内容走 `POST /blogger/publish`（`check=1` 即为发布），不点页面按钮；文章 ID 取响应 `data.blog_id`（`did` 是草稿 ID）；部分内容会以**动态**形式发布（作者页 `/addozhang/release`），不在博客文章列表；内容触发违禁词时 API 返回「含有违禁词」 |
 | 思否 | segmentfault | ✅ | markdown textarea | 已验证 | — |
-| 哔哩哔哩 | bilibili | ✅ | TipTap/ProseMirror (iframe) | 已验证 | 编辑器在 iframe (`york/read-editor`) 内；`all_frames: true`；剥离外部 `<img>` 标签；一步发布 |
+| 哔哩哔哩 | bilibili | ✅ | TipTap/ProseMirror (iframe) | 已验证 | 编辑器在 iframe (`york/read-editor`) 内；`all_frames: true`；剥离外部 `<img>` 标签；**2026-11 改版为二段式发布**（详见特殊发布流程） |
 | 开源中国 | oschina | ✅ | ProseMirror（内容走 API 不依赖编辑器） | 已验证 | ai-write 入口 + 重定向 + 向导关闭 + catalog + Markdown API 发布 |
-| InfoQ | infoq | ✅ | ProseMirror | 已验证 | 需创建草稿 + 弹窗关闭 |
-| 腾讯云 | tencent-cloud | ✅ | markdown textarea | 未验证 | Session 容易过期 |
+| InfoQ | infoq | ✅ | ProseMirror | 已验证 | 需创建草稿 + 弹窗关闭；必须捕获 `/article/{id}` 跳转才算成功（draftId 推导会假阳性）；发布后可能被自动审核下线 |
+| 腾讯云 | tencent-cloud | ✅ | markdown textarea | 已验证（2026-11） | 发布端点 `POST /developer/api/article/addArticle` → `{ articleId, status: 0 }`；「发布成功」portal 文案不可靠，必须校验 API 响应；公开可见有延迟 |
 | ITPUB | itpub | ✅ | Layui 富文本 | 跳过 | 网站无法访问；Publisher 已实现（UEditor bridge + Layui form） |
 
 ### 跑完所有测试
@@ -567,6 +567,8 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 - **功能弹窗**：编辑器可能显示"文件导入新功能上线了"等公告弹窗，`beforeFill()` 点击"知道了"按钮关闭（最多 3 次）
 - **UI 组件**：使用 GeekBang 自研组件库（`[gk-button]`, `[gkmodal-color]` 属性选择器），非 Ant Design
 - **两步发布**：点击发布按钮 → 等待 `.dialog-setting` 确认弹窗（注意：页面上有 16+ 个空 `.modal-container`，必须通过 `.dialog-setting` 类精确定位）→ 点击 `.dialog-footer-buttons [gkbtn-color="green"]` 确认
+- **发布成功判据（2026-11）**：确认点击后必须等到跳转 `/article/{id}` 才算发布成功；未跳转说明被表单校验拦截或仅存草稿，必须报失败（旧版按 draftId 推导 URL 上报成功会造成假阳性）
+- **自动审核下线**：发布成功的文章可能立刻被自动审核下线（文章页显示「该内容涉嫌违规，已被下线，点击申诉」），开源推广类内容更易触发；需要人工申诉或调整内容
 
 #### Toutiao（今日头条）
 - **两步 API 发布**：(1) 通过 API `POST /api/post/article/save_draft` 保存草稿获取 pgc_id；(2) 通过 API `POST /api/post/article/publish` 发布
@@ -576,13 +578,26 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 
 #### Bilibili（哔哩哔哩）
 - **编辑器重构（2026-03）**：旧 URL `read/editor/#/web` 已废弃，新 URL `platform/upload/text/edit`（重定向到 `new-edit`）
-- **iframe 编辑器**：编辑器在 iframe (`member.bilibili.com/york/read-editor?`) 内，manifest.json 需 `all_frames: true`
+- **编辑器文档化改版（2026-11）**：编辑器变成文档式布局（左侧目录 + 右侧手机预览），但旧选择器仍然有效（标题 `textarea.title-input__inner`、正文 `.tiptap.ProseMirror.eva3-editor`、发布 `.vui_button.vui_button--blue`）
+- **iframe 编辑器**：编辑器在 iframe (`member.bilibili.com/york/read-editor?`) 内，manifest.json 需 `all_frames: true`。**注意**：同源 iframe 不出现在 CDP `/json/list` 中，调试时需用 `Runtime.executionContextCreated` 找 frame 上下文
+- **填充会被编辑器初始化重置（2026-11）**：编辑器 App 挂载早期会把受控输入重置回空值，填充后必须校验实际值并重试（`fillTitle`/`fillBody` 已内置校验+重试，Vue 重渲染还会替换节点，每次重试需重新查询元素）
+- **二段式发布（2026-11）**：第一次点击「发布」通常只触发 `draft/add` 存草稿，实际发布需要草稿保存完成后的再次点击。`afterFill()` 已实现两轮点击 + 双 frame 拦截 + 创作列表兜底确认
+- **发布 API 可能从 iframe 发起**：父页拦截器会漏捕获，`bilibili.js` 在 read-editor frame 内再装一份本地拦截器（两处都能捕获 `create/opus` 响应与错误码）
+- **发布确认兜底**：若两个拦截器都没抓到（发布 API 延迟或端点再变），轮询 `GET /api.bilibili.com/x/polymer/web-dynamic/v1/opus/creationlist` 按「标题精确匹配 + 当天 pub_time」确认发布结果（旧列表 API `api_article_creative` 查不到新 opus 文章）
+- **API 频率限制**：短时间多次发布会触发「您操作的太快啦~」（小时级冷却），重试前至少等 25 分钟。错误会以可见 toast 出现，`_readErrorTip()` 捕获后透传
 - **TipTap/ProseMirror**：标题 `textarea.title-input__inner`（maxlength=50），正文 `.tiptap.ProseMirror.eva3-editor`
 - **UI 组件库**：从 `bre-*` 改为 `vui_*` 组件（B站自研）
-- **一步发布**：点击 `.vui_button.vui_button--blue`（"发布"）直接提交，成功后显示 `.publish-success-dialog` 弹窗
 - **发布 API 迁移（2026-04）**：旧 API `POST /x/article/creative/article/submit` → `{ data: { aid } }`；新 API `POST /x/dynamic/feed/create/opus` → `{ data: { dyn_rid } }`。URL 格式不变：`https://www.bilibili.com/read/cv${dyn_rid}`。草稿保存也从 `/x/article/creative/draft/addupdate` 迁移到 `/x/dynamic/feed/article/draft/add`
 - **frame check**：content script 注入主页面和 iframe，bilibili.js 通过 URL 检查只在 iframe 中初始化
 - **外部图片剥离**：HTML 内容中的外部 `<img>` 标签会静默阻止提交（无报错），`fillBody()` 中自动剥离所有 `<img>` 标签
+
+#### 腾讯云（腾讯云开发者社区）
+- **发布端点**：`POST https://cloud.tencent.com/developer/api/article/addArticle` → 成功响应 `{ articleId, status: 0 }`，文章 URL 为 `https://cloud.tencent.com/developer/article/{articleId}`
+- **成功判据必须用 API 响应**：编辑器抽屉里的「发布成功」portal 文案不可靠（曾出现 portal 显示成功但服务端未持久化的情况），tencent-cloud.js 已装 fetch+XHR 双拦截器校验 addArticle 响应
+- **发布请求在主 frame**：确认发布按钮和 addArticle 请求都在主 frame 的抽屉内，拦截器装在本 frame 即可
+- **发布确认**：`_waitForPublishResult()` 监听 portal 文案 + 错误提示 + 表单校验错误；拦截器拿到 articleId 后即使 portal 检测失败也视为成功
+- **公开可见延迟**：addArticle 成功后文章可能要过一会儿才出现在个人文章列表（`/developer/user/{uid}/articles`），核验时直接访问文章 URL 更可靠
+- **文章标签必填**：发布设置面板中「文章标签」为必填，缺失时「确认发布」点击被 Vue 表单校验静默拦截（无异常、无 API 调用），需在平台设置中配置 tags
 
 #### Juejin（掘金）
 - **ByteMD 编辑器**：底层 CodeMirror，通过 markdown 适配器填充内容
@@ -773,3 +788,14 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **动态 content script 注册后必须刷新页面**：通过 `registerBridgeScripts()` 动态注册的 content script 只对后续页面导航生效，已打开的前端页面需要手动刷新才能加载 bridge scripts
 - **manifest externally_connectable 不支持 IP 地址**：`externally_connectable.matches` 只支持域名模式（`*.example.com`），不支持 IP 地址和 `<all_urls>`。对 IP 访问场景只能通过 content script 桥接通信
 - **host_permissions `<all_urls>` 是动态注册的前提**：`chrome.scripting.registerContentScripts` 需要对目标 URL 有 host_permissions，所以 manifest 必须声明 `<all_urls>`
+- **B站 afterFill() 返回 null = 假阳性**：base-publisher 对 afterFill() 正常返回（含 null）一律上报 success。无法确认发布结果时必须抛错，否则会出现「上报成功但文章不存在」。2026-11 起 bilibili.js 已内置：填充校验重试、发布前内容检查、双 frame API 拦截（含错误码）、错误 toast 透传、创作列表兜底确认
+- **B站编辑器初始化会重置填充内容（2026-11）**：编辑器 App 挂载早期会把标题/正文重置回空值，且 Vue 重渲染会替换 DOM 节点。填充后必须校验实际值并重试，且每次重试要重新查询元素（旧引用残留旧值会造成假通过）。空内容点击「发布」被前端校验静默拦截（连 API 都不发）
+- **B站发布 API 可能从 iframe 发起**：父页面装的 fetch 拦截器捕获不到从 read-editor iframe 发出的请求，必须在 iframe 内再装一份。两处都未捕获时用创作列表 API `GET /api.bilibili.com/x/polymer/web-dynamic/v1/opus/creationlist` 兜底确认（标题精确匹配 + 当天 pub_time，防止误判历史文章）
+- **B站限流「您操作的太快啦~」**：短时间多次发布触发，小时级冷却（实测 25 分钟后解除）。错误以可见 toast 出现，publisher 会捕获并透传。重试前至少等 25 分钟，频繁重试可能延长限制
+- **B站 opus 文章不在旧列表 API**：`api.bilibili.com/x/article/creative/article/list` 查不到新 opus 文章（返回空或旧数据），图文管理列表用 `x/polymer/web-dynamic/v1/opus/creationlist`。图文管理页是 `member.bilibili.com/platform/upload-manager/opus`
+- **Google Chrome 137+ 品牌版移除 `--load-extension`**：Google Chrome（非 Chromium/CfT）不再支持命令行加载扩展，`--disable-extensions-except` 也会禁用所有扩展。本地测试必须用 **Chrome for Testing**（Playwright 缓存内的 `Google Chrome for Testing.app`），并配合独立的 user-data-dir
+- **扩展重载（chrome.runtime.reload）后必须刷新已打开页面**：重载后旧页面的 content script 上下文失效，页面桥接会报 "Extension context invalidated"，必须刷新页面重新注入 bridge scripts
+- **腾讯云 addArticle 响应才是发布真相**：`POST /developer/api/article/addArticle` → `{ articleId, status: 0 }`。「发布成功」portal 文案可能误导（#151 曾报成功但文章未持久化）。tencent-cloud.js 已装 fetch+XHR 双拦截器校验响应并回传 article_url
+- **InfoQ draftId ≠ articleId 假阳性**：确认弹窗点击后未跳转 `/article/{id}` 说明发布被校验拦截或仅存草稿，不能按 draftId 推导 URL 上报成功（已移除该兜底）。另外 InfoQ 自动审核可能在发布后下线文章（「该内容涉嫌违规，已被下线」），可在文章页点击申诉
+- **CSDN 异步审核拒绝**：开源推广类内容（GitHub 链接 + 项目介绍）易被审核拒绝（「审核未通过」），发布时 API 成功无法检测，只能事后在创作管理页（`mp.csdn.net/mp_blog/manage/article`）确认。修改内容后可重投
+- **51CTO 违禁词**：内容触发违禁词时 `/blogger/publish` 返回错误「含有违禁词」（51cto.js 会捕获透传）。逐篇内容不同结果不同，需人工排查具体词汇

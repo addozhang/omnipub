@@ -107,16 +107,10 @@
         return { article_url: articleUrl };
       }
 
-      // Fallback: 从当前 draft URL 推导（draftId 通常等于 articleId）
-      const draftMatch = location.href.match(/\/draft\/([a-zA-Z0-9]+)/);
-      if (draftMatch) {
-        const fallbackUrl = `https://xie.infoq.cn/article/${draftMatch[1]}`;
-        log(`[infoq] 使用 draftId 推导 URL: ${fallbackUrl}`);
-        return { article_url: fallbackUrl };
-      }
-
-      log("[infoq] 未捕获到文章 URL");
-      return null;
+      // 未跳转到 /article/{id}：确认弹窗点击后发布大概率被表单校验拦截，
+      // 或仅保存为草稿。不能再按"draftId 即 articleId"的旧假设上报成功
+      //（假阳性：公开文章列表里根本不会出现这篇文章）。
+      throw new Error("发布未确认：确认弹窗点击后 15s 内未跳转到文章页（可能被校验拦截或仅存为草稿）");
     }
 
     async _waitForArticleUrl(timeout = 15000) {
