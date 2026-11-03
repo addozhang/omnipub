@@ -293,6 +293,70 @@ async function _mainWorldCodeRunner(code, args) {
       }
       return url ? "ok:" + url : "not_found";
     }
+    case "tencent_installAddArticleInterceptor": {
+      // Install fetch+XHR interceptor on the MAIN world to capture the
+      // tencent addArticle publish response. MUST run in the main world
+      // (executeInMainWorld): patching window.fetch/XHR from the content
+      // script's isolated world does NOT intercept requests made by the
+      // page itself.
+      //
+      // 腾讯云 2026-11: POST /developer/api/article/addArticle → { articleId, status: 0 }
+      const PUBLISH_URL = "/developer/api/article/addArticle";
+      const record = (json) => {
+        const articleId = json.articleId || json.data?.articleId;
+        window.__tcAddArticleCapture = {
+          ok: !!articleId,
+          articleUrl: articleId ? "https://cloud.tencent.com/developer/article/" + articleId : null,
+          raw: JSON.stringify(json).slice(0, 200),
+        };
+      };
+      const origFetch = window.fetch;
+      window.__tcOrigFetch = origFetch;
+      window.__tcAddArticleCapture = null;
+      window.fetch = async function (...fetchArgs) {
+        const response = await origFetch.apply(this, fetchArgs);
+        const url = typeof fetchArgs[0] === "string" ? fetchArgs[0] : fetchArgs[0]?.url;
+        if (url && url.includes(PUBLISH_URL)) {
+          const clone = response.clone();
+          try { record(await clone.json()); } catch { /* ignore parse errors */ }
+        }
+        return response;
+      };
+      const origOpen = XMLHttpRequest.prototype.open;
+      const origSend = XMLHttpRequest.prototype.send;
+      window.__tcOrigOpen = origOpen;
+      window.__tcOrigSend = origSend;
+      XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+        this.__tcUrl = url;
+        return origOpen.call(this, method, url, ...rest);
+      };
+      XMLHttpRequest.prototype.send = function (...sendArgs) {
+        if (this.__tcUrl && this.__tcUrl.includes(PUBLISH_URL)) {
+          this.addEventListener("load", function () {
+            try { record(JSON.parse(this.responseText)); } catch { /* ignore */ }
+          });
+        }
+        return origSend.apply(this, sendArgs);
+      };
+      return "ok";
+    }
+    case "tencent_checkAddArticleCapture": {
+      // Read the captured addArticle response. args.cleanup: if true,
+      // restore original fetch/XHR and clean up globals.
+      const cap = window.__tcAddArticleCapture;
+      if (args.cleanup && window.__tcOrigFetch) {
+        window.fetch = window.__tcOrigFetch;
+        delete window.__tcOrigFetch;
+      }
+      if (args.cleanup && window.__tcOrigOpen) {
+        XMLHttpRequest.prototype.open = window.__tcOrigOpen;
+        XMLHttpRequest.prototype.send = window.__tcOrigSend;
+        delete window.__tcOrigOpen;
+        delete window.__tcOrigSend;
+      }
+      delete window.__tcAddArticleCapture;
+      return cap ? JSON.stringify(cap) : "not_found";
+    }
     case "51cto_installPublishInterceptor": {
       // Intercept POST /blogger/draft to capture the draft/article ID (`did`).
       // 51CTO uses the same endpoint for auto-save and publish; we intercept

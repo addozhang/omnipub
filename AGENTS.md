@@ -796,7 +796,8 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **B站 opus 文章不在旧列表 API**：`api.bilibili.com/x/article/creative/article/list` 查不到新 opus 文章（返回空或旧数据），图文管理列表用 `x/polymer/web-dynamic/v1/opus/creationlist`。图文管理页是 `member.bilibili.com/platform/upload-manager/opus`
 - **Google Chrome 137+ 品牌版移除 `--load-extension`**：Google Chrome（非 Chromium/CfT）不再支持命令行加载扩展，`--disable-extensions-except` 也会禁用所有扩展。本地测试必须用 **Chrome for Testing**（Playwright 缓存内的 `Google Chrome for Testing.app`），并配合独立的 user-data-dir
 - **扩展重载（chrome.runtime.reload）后必须刷新已打开页面**：重载后旧页面的 content script 上下文失效，页面桥接会报 "Extension context invalidated"，必须刷新页面重新注入 bridge scripts
-- **腾讯云 addArticle 响应才是发布真相**：`POST /developer/api/article/addArticle` → `{ articleId, status: 0 }`。「发布成功」portal 只代表提交受理，文章要过审核才会公开（#151 间隔约 9 小时才公开，期间个人列表查不到，易误判为发布失败）。tencent-cloud.js 已装 fetch+XHR 双拦截器校验响应并回传 article_url
+- **腾讯云 addArticle 响应才是发布真相**：`POST /developer/api/article/addArticle` → `{ articleId, status: 0 }`。「发布成功」portal 只代表提交受理，文章要过审核才会公开（#151 间隔约 9 小时才公开，期间个人列表查不到，易误判为发布失败）。tencent-cloud.js 的拦截器必须经 `executeInMainWorld` 装在 MAIN world 才能拦截页面发起的请求并回传 article_url
+- **content script 隔离世界 patch window.fetch/XHR 拦截不到页面请求**：isolated world 与页面共享 DOM 但 JS 上下文独立，在 content script 里 `window.fetch = ...` 只会替换隔离世界自己的函数，页面 JS 发起的请求不受影响。要拦截页面请求必须通过 `chrome.scripting.executeScript`（world: "MAIN"，即 SW 的 `executeInMainWorld` handler）注入拦截代码。bilibili/tencent-cloud 的发布响应拦截器都走这条路
 - **InfoQ draftId ≠ articleId 假阳性**：确认弹窗点击后未跳转 `/article/{id}` 说明发布被校验拦截或仅存草稿，不能按 draftId 推导 URL 上报成功（已移除该兜底）。另外 InfoQ 自动审核可能在发布后下线文章（「该内容涉嫌违规，已被下线」），可在文章页点击申诉
 - **CSDN 异步审核拒绝**：开源推广类内容（GitHub 链接 + 项目介绍）易被审核拒绝（「审核未通过」），发布时 API 成功无法检测，只能事后在创作管理页（`mp.csdn.net/mp_blog/manage/article`）确认。修改内容后可重投
 - **51CTO 违禁词**：内容触发违禁词时 `/blogger/publish` 返回错误「含有违禁词」（51cto.js 会捕获透传）。逐篇内容不同结果不同，需人工排查具体词汇

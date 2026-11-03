@@ -109,9 +109,18 @@
           "未找到确认发布按钮，文章可能未发布（仅保存为草稿）"
         );
       }
-      // 拦截发布 API（addArticle）响应：status 0 + articleId 才是真发布成功，
+      // 拦截发布 API（addArticle）响应：拿到 articleId 才是真发布成功，
       // 仅靠"发布成功"portal 文案可能掩盖服务端失败（2026-11 #151 案例）。
-      this._installPublishInterceptor();
+      // 必须在 MAIN world 安装拦截器——content script 隔离世界 patch 的
+      // window.fetch/XHR 只影响隔离世界自身，拦不到页面发起的请求。
+      const installResult = await chrome.runtime.sendMessage({
+        action: "executeInMainWorld",
+        code: "tencent_installAddArticleInterceptor",
+        targetParent: true,
+      });
+      if (!installResult?.success) {
+        throw new Error("failed to install addArticle interceptor: " + (installResult?.error || "unknown"));
+      }
       log(`点击确认: "${confirmBtn.textContent.trim()}"`);
       confirmBtn.click();
 
@@ -119,99 +128,65 @@
         await this._waitForPublishResult();
       } catch (e) {
         // portal 检测失败时，若拦截器已拿到 articleId，仍视为成功
-        const cap = window.__omnipubTcCapture;
+        const cap = await this._readAddArticleCapture(true);
         if (cap && cap.articleUrl) {
           log("portal 检测失败但 addArticle 已确认成功:", cap.articleUrl);
-          this._cleanupPublishInterceptor();
           return { article_url: cap.articleUrl };
         }
-        this._cleanupPublishInterceptor();
         throw e;
       }
 
-      // portal 的 DOM 更新可能早于 XHR load 事件，等拦截器记录完成（最多 2.5s）
+      // addArticle 响应可能略晚于 portal DOM 更新，等待拦截器记录完成（最多 2.5s）
       const capDeadline = Date.now() + 2500;
-      while (!window.__omnipubTcCapture && Date.now() < capDeadline) {
+      let cap = null;
+      while (Date.now() < capDeadline) {
+        cap = await this._readAddArticleCapture(false);
+        if (cap) break;
         await this.delay(200);
       }
+      cap = cap || await this._readAddArticleCapture(true);
 
-      const cap = window.__omnipubTcCapture;
       if (cap && cap.articleUrl) {
         log("addArticle 确认成功:", cap.articleUrl);
-        this._cleanupPublishInterceptor();
+        await this._cleanupAddArticleInterceptor();
         return { article_url: cap.articleUrl };
       }
       // addArticle 有响应但没拿到 articleId：服务端拒绝了这次提交，
       // 即使 portal 显示"发布成功"也不能按成功上报（#151 的假阳性来源）。
       if (cap && !cap.ok) {
-        this._cleanupPublishInterceptor();
+        await this._cleanupAddArticleInterceptor();
         throw new Error("腾讯云发布被拒绝: " + cap.raw);
       }
       // 无拦截结果但有成功 portal：保持既有行为（成功但无 URL）
-      this._cleanupPublishInterceptor();
+      await this._cleanupAddArticleInterceptor();
     }
 
     /**
-     * 在主 frame 拦截 addArticle 响应，记录 articleId/status/错误信息。
-     * 确认发布按钮在主 frame 的抽屉里，发布请求也从主 frame 发出。
+     * 读取 MAIN world 拦截器捕获的 addArticle 响应（可选清理拦截器）。
      */
-    _installPublishInterceptor() {
-      if (window.__omnipubTcInterceptor) return;
-      const PUBLISH_URL = "/developer/api/article/addArticle";
-      const record = (json) => {
-        const articleId = json.articleId || json.data?.articleId;
-        window.__omnipubTcCapture = {
-          ok: !!articleId,
-          articleUrl: articleId ? "https://cloud.tencent.com/developer/article/" + articleId : null,
-          raw: JSON.stringify(json).slice(0, 200),
-        };
-      };
-      // fetch 拦截
-      const origFetch = window.fetch;
-      window.__omnipubTcOrigFetch = origFetch;
-      window.__omnipubTcCapture = null;
-      window.fetch = async function (...fetchArgs) {
-        const response = await origFetch.apply(this, fetchArgs);
-        const url = typeof fetchArgs[0] === "string" ? fetchArgs[0] : fetchArgs[0]?.url;
-        if (url && url.includes(PUBLISH_URL)) {
-          try { record(await response.clone().json()); } catch { /* ignore */ }
-        }
-        return response;
-      };
-      // XHR 拦截（编辑器可能用 axios/XHR 提交）
-      const origOpen = XMLHttpRequest.prototype.open;
-      const origSend = XMLHttpRequest.prototype.send;
-      window.__omnipubTcOrigOpen = origOpen;
-      window.__omnipubTcOrigSend = origSend;
-      XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-        this.__omnipubUrl = url;
-        return origOpen.call(this, method, url, ...rest);
-      };
-      XMLHttpRequest.prototype.send = function (...args) {
-        if (this.__omnipubUrl && this.__omnipubUrl.includes(PUBLISH_URL)) {
-          this.addEventListener("load", function () {
-            try { record(JSON.parse(this.responseText)); } catch { /* ignore */ }
-          });
-        }
-        return origSend.apply(this, args);
-      };
-      window.__omnipubTcInterceptor = true;
+    async _readAddArticleCapture(cleanup = false) {
+      const res = await chrome.runtime.sendMessage({
+        action: "executeInMainWorld",
+        code: "tencent_checkAddArticleCapture",
+        args: { cleanup },
+        targetParent: true,
+      });
+      if (!res?.success || !res.detail || res.detail === "not_found") return null;
+      try { return JSON.parse(res.detail); } catch { return null; }
     }
 
-    _cleanupPublishInterceptor() {
-      if (!window.__omnipubTcInterceptor) return;
-      if (window.__omnipubTcOrigFetch) {
-        window.fetch = window.__omnipubTcOrigFetch;
-        delete window.__omnipubTcOrigFetch;
-      }
-      if (window.__omnipubTcOrigOpen) {
-        XMLHttpRequest.prototype.open = window.__omnipubTcOrigOpen;
-        XMLHttpRequest.prototype.send = window.__omnipubTcOrigSend;
-        delete window.__omnipubTcOrigOpen;
-        delete window.__omnipubTcOrigSend;
-      }
-      delete window.__omnipubTcCapture;
-      delete window.__omnipubTcInterceptor;
+    /**
+     * 清理 MAIN world 拦截器（恢复原始 fetch/XHR 并清空捕获状态）。
+     */
+    async _cleanupAddArticleInterceptor() {
+      try {
+        await chrome.runtime.sendMessage({
+          action: "executeInMainWorld",
+          code: "tencent_checkAddArticleCapture",
+          args: { cleanup: true },
+          targetParent: true,
+        });
+      } catch { /* best-effort */ }
     }
 
     // ----------------------------------------------------------
