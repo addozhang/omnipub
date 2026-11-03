@@ -593,7 +593,7 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 
 #### 腾讯云（腾讯云开发者社区）
 - **发布端点**：`POST https://cloud.tencent.com/developer/api/article/addArticle` → 成功响应 `{ articleId, status: 0 }`，文章 URL 为 `https://cloud.tencent.com/developer/article/{articleId}`
-- **成功判据必须用 API 响应**：编辑器抽屉里的「发布成功」portal 文案不可靠（曾出现 portal 显示成功但服务端未持久化的情况），tencent-cloud.js 已装 fetch+XHR 双拦截器校验 addArticle 响应
+- **成功判据必须用 API 响应**：编辑器抽屉里的「发布成功」portal 只代表提交受理（文章过审核后才公开，#151 间隔约 9 小时），不能以 portal 判断公开状态，tencent-cloud.js 已装 fetch+XHR 双拦截器校验 addArticle 响应
 - **发布请求在主 frame**：确认发布按钮和 addArticle 请求都在主 frame 的抽屉内，拦截器装在本 frame 即可
 - **发布确认**：`_waitForPublishResult()` 监听 portal 文案 + 错误提示 + 表单校验错误；拦截器拿到 articleId 后即使 portal 检测失败也视为成功
 - **公开可见延迟**：addArticle 成功后文章可能要过一会儿才出现在个人文章列表（`/developer/user/{uid}/articles`），核验时直接访问文章 URL 更可靠
@@ -795,7 +795,7 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **B站 opus 文章不在旧列表 API**：`api.bilibili.com/x/article/creative/article/list` 查不到新 opus 文章（返回空或旧数据），图文管理列表用 `x/polymer/web-dynamic/v1/opus/creationlist`。图文管理页是 `member.bilibili.com/platform/upload-manager/opus`
 - **Google Chrome 137+ 品牌版移除 `--load-extension`**：Google Chrome（非 Chromium/CfT）不再支持命令行加载扩展，`--disable-extensions-except` 也会禁用所有扩展。本地测试必须用 **Chrome for Testing**（Playwright 缓存内的 `Google Chrome for Testing.app`），并配合独立的 user-data-dir
 - **扩展重载（chrome.runtime.reload）后必须刷新已打开页面**：重载后旧页面的 content script 上下文失效，页面桥接会报 "Extension context invalidated"，必须刷新页面重新注入 bridge scripts
-- **腾讯云 addArticle 响应才是发布真相**：`POST /developer/api/article/addArticle` → `{ articleId, status: 0 }`。「发布成功」portal 文案可能误导（#151 曾报成功但文章未持久化）。tencent-cloud.js 已装 fetch+XHR 双拦截器校验响应并回传 article_url
+- **腾讯云 addArticle 响应才是发布真相**：`POST /developer/api/article/addArticle` → `{ articleId, status: 0 }`。「发布成功」portal 只代表提交受理，文章要过审核才会公开（#151 间隔约 9 小时才公开，期间个人列表查不到，易误判为发布失败）。tencent-cloud.js 已装 fetch+XHR 双拦截器校验响应并回传 article_url
 - **InfoQ draftId ≠ articleId 假阳性**：确认弹窗点击后未跳转 `/article/{id}` 说明发布被校验拦截或仅存草稿，不能按 draftId 推导 URL 上报成功（已移除该兜底）。另外 InfoQ 自动审核可能在发布后下线文章（「该内容涉嫌违规，已被下线」），可在文章页点击申诉
 - **CSDN 异步审核拒绝**：开源推广类内容（GitHub 链接 + 项目介绍）易被审核拒绝（「审核未通过」），发布时 API 成功无法检测，只能事后在创作管理页（`mp.csdn.net/mp_blog/manage/article`）确认。修改内容后可重投
 - **51CTO 违禁词**：内容触发违禁词时 `/blogger/publish` 返回错误「含有违禁词」（51cto.js 会捕获透传）。逐篇内容不同结果不同，需人工排查具体词汇
