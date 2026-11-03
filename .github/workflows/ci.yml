@@ -99,7 +99,9 @@ jobs:
   # ── Playwright E2E（Docker Compose）───────────────────────
   e2e-tests:
     name: E2E Tests (Playwright)
-    runs-on: ubuntu-latest
+    # ubuntu-latest 已滚到 26.04，锁定的 Playwright 尚不支持其 chromium；
+    # 待升级 Playwright 后可回到 ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [backend-tests, frontend-build]
 
     steps:
