@@ -575,6 +575,7 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 - **ProseMirror 粘贴**：使用 clipboard paste 适配器填充内容
 - **发布后弹窗**：发布成功后显示推广弹窗，`afterFill()` 自动关闭
 - **AI 写作助手抽屉**：编辑器右侧可能弹出 AI 写作助手抽屉遮挡编辑器，CDP fallback 可绕过
+- **外链内容静默拦截（2026-11）**：含外部链接（Discord/GitHub 等）的文章点击「预览并发布」可能被风控静默拦截——无报错、无 API 调用、无跳转，所有点击策略（native click / pointer events / React internals / API 发布）全部无效；纯观点文不受影响。草稿已自动保存（草稿箱可见），需人工调整内容后从草稿箱发布。标题超 30 字会在标点处智能截断（`_truncateTitle`，设计行为非 bug）
 
 #### Bilibili（哔哩哔哩）
 - **编辑器重构（2026-03）**：旧 URL `read/editor/#/web` 已废弃，新 URL `platform/upload/text/edit`（重定向到 `new-edit`）
