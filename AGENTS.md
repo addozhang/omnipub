@@ -585,7 +585,7 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 - **二段式发布（2026-11）**：第一次点击「发布」通常只触发 `draft/add` 存草稿，实际发布需要草稿保存完成后的再次点击。`afterFill()` 已实现两轮点击 + 双 frame 拦截 + 创作列表兜底确认
 - **发布 API 可能从 iframe 发起**：父页拦截器会漏捕获，`bilibili.js` 在 read-editor frame 内再装一份本地拦截器（两处都能捕获 `create/opus` 响应与错误码）
 - **发布确认兜底**：若两个拦截器都没抓到（发布 API 延迟或端点再变），轮询 `GET /api.bilibili.com/x/polymer/web-dynamic/v1/opus/creationlist` 按「标题精确匹配 + 当天 pub_time」确认发布结果（旧列表 API `api_article_creative` 查不到新 opus 文章）
-- **API 频率限制**：短时间多次发布会触发「您操作的太快啦~」（小时级冷却），重试前至少等 25 分钟。错误会以可见 toast 出现，`_readErrorTip()` 捕获后透传
+- **API 频率限制（日配额）**：**滚动窗口约 2 篇/日**（实测 2026-11：一晚发 2 篇后，后续 41~100 分钟间隔的尝试全部返回「您操作的太快啦~」；曾观察到 77 分钟间隔连发成功，但第 3 篇无论间隔多久都被拒，次日窗口滚动后才恢复）。错误以可见 toast 出现，`_readErrorTip()` 捕获后透传。批量补发务必按天排程，每天最多 2 篇
 - **TipTap/ProseMirror**：标题 `textarea.title-input__inner`（maxlength=50），正文 `.tiptap.ProseMirror.eva3-editor`
 - **UI 组件库**：从 `bre-*` 改为 `vui_*` 组件（B站自研）
 - **发布 API 迁移（2026-04）**：旧 API `POST /x/article/creative/article/submit` → `{ data: { aid } }`；新 API `POST /x/dynamic/feed/create/opus` → `{ data: { dyn_rid } }`。URL 格式不变：`https://www.bilibili.com/read/cv${dyn_rid}`。草稿保存也从 `/x/article/creative/draft/addupdate` 迁移到 `/x/dynamic/feed/article/draft/add`
@@ -792,7 +792,11 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **B站 afterFill() 返回 null = 假阳性**：base-publisher 对 afterFill() 正常返回（含 null）一律上报 success。无法确认发布结果时必须抛错，否则会出现「上报成功但文章不存在」。2026-11 起 bilibili.js 已内置：填充校验重试、发布前内容检查、双 frame API 拦截（含错误码）、错误 toast 透传、创作列表兜底确认
 - **B站编辑器初始化会重置填充内容（2026-11）**：编辑器 App 挂载早期会把标题/正文重置回空值，且 Vue 重渲染会替换 DOM 节点。填充后必须校验实际值并重试，且每次重试要重新查询元素（旧引用残留旧值会造成假通过）。空内容点击「发布」被前端校验静默拦截（连 API 都不发）
 - **B站发布 API 可能从 iframe 发起**：父页面装的 fetch 拦截器捕获不到从 read-editor iframe 发出的请求，必须在 iframe 内再装一份。两处都未捕获时用创作列表 API `GET /api.bilibili.com/x/polymer/web-dynamic/v1/opus/creationlist` 兜底确认（标题精确匹配 + 当天 pub_time，防止误判历史文章）
-- **B站限流「您操作的太快啦~」**：短时间多次发布触发，小时级冷却（实测 25 分钟后解除）。错误以可见 toast 出现，publisher 会捕获并透传。重试前至少等 25 分钟，频繁重试可能延长限制
+- **B站限流「您操作的太快啦~」= 日配额**：实测滚动窗口约 **2 篇/日**（2026-11：当夜第 3 篇无论间隔 41~100 分钟都被拒，次日窗口滚动后恢复；曾见 77 分钟间隔连发 2 篇成功）。错误以可见 toast 出现，publisher 会捕获并透传。批量补发按天排程，每天最多 2 篇，跨天重试间隔 ≥ 20 小时
+- **Playwright 浏览器缓存会被其他项目清掉（版本耦合）**：`~/Library/Caches/ms-playwright/` 里的 chromium 构建与项目锁定的 playwright 版本绑定。**任何**项目跑 `playwright install`（版本不同）都会下载自己的构建并**移除不匹配的构建**——`~/.omnipub-test-profile` 由哪个 CfT 版本写入是硬依赖（见下条）。诊断：`stat` 缓存目录时间戳看何时被重建；恢复：在本项目 `cd frontend && npx playwright install chromium` 装回锁定的 chromium-1208（CfT 145）
+- **Chrome profile 忌降级（SIGTRAP 崩溃）**：profile 由 CfT N 写入后，用 < N 的版本打开会直接崩溃（`Mach rendezvous failed, terminating process (parent died?)` / EXC_BREAKPOINT）。profile 只许升不许降。若锁定构建版本低于 profile 版本：旧 profile 备份保留（`*.bak-153`），新建 profile 后**迁移 `Default/Cookies`**（SQLite cookie 库跨版本兼容），再经 CDP `localStorage.setItem('token', ...)` 注入 Omnipub 会话——实测 10 平台登录态全部恢复
+- **官方 CfT zip 包在 macOS 26.6 网络全断（2026-11 实测）**：从 googlechromelabs 下载的官方 CfT 157 mac-arm64，页面渲染正常（chrome:// 可用）但所有 http(s) 加载永久挂起（干净 profile + `--no-sandbox` 亦然）；Playwright 重打包的构建（chromium-1208/145）无此问题。需要 CfT 时优先用 Playwright 缓存内的构建
+- **DSH bash 前台命令里的 `&` 后台进程会被回收**：命令结束时整个进程组被杀（Chrome 以 SIGTRAP 终止）。长驻浏览器必须用 `run_in_background` 任务启动，不能 `cmd &` 挂在前台命令里
 - **B站 opus 文章不在旧列表 API**：`api.bilibili.com/x/article/creative/article/list` 查不到新 opus 文章（返回空或旧数据），图文管理列表用 `x/polymer/web-dynamic/v1/opus/creationlist`。图文管理页是 `member.bilibili.com/platform/upload-manager/opus`
 - **Google Chrome 137+ 品牌版移除 `--load-extension`**：Google Chrome（非 Chromium/CfT）不再支持命令行加载扩展，`--disable-extensions-except` 也会禁用所有扩展。本地测试必须用 **Chrome for Testing**（Playwright 缓存内的 `Google Chrome for Testing.app`），并配合独立的 user-data-dir
 - **扩展重载（chrome.runtime.reload）后必须刷新已打开页面**：重载后旧页面的 content script 上下文失效，页面桥接会报 "Extension context invalidated"，必须刷新页面重新注入 bridge scripts
