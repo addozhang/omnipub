@@ -239,6 +239,8 @@ rm -f ~/.omnipub-test-profile/Singleton*
 curl -s http://localhost:9222/json/version | python3 -m json.tool
 ```
 
+> ⚠️ **DSH/AI Agent 环境注意**：上面 shell 里的 `&` 后台写法只适用于交互终端。在 DSH bash 前台命令中 `&` 挂起的进程会随命令结束被整组回收——必须用 `run_in_background` 任务（或 `nohup ... &` + `disown`）启动浏览器。另：此 profile 由当前锁定的 chromium-1208（CfT 145）写入，**不得用更低版本的 CfT 打开**（降级即崩溃，见已知陷阱）。
+
 #### Step 2：连接 MCP 服务器（Dual CDP）
 
 两个 MCP 服务器连接同一个浏览器实例，提供互补能力：
@@ -797,6 +799,7 @@ GitHub Actions（`.github/workflows/ci.yml`）：
 - **Chrome profile 忌降级（SIGTRAP 崩溃）**：profile 由 CfT N 写入后，用 < N 的版本打开会直接崩溃（`Mach rendezvous failed, terminating process (parent died?)` / EXC_BREAKPOINT）。profile 只许升不许降。若锁定构建版本低于 profile 版本：旧 profile 备份保留（`*.bak-153`），新建 profile 后**迁移 `Default/Cookies`**（SQLite cookie 库跨版本兼容），再经 CDP `localStorage.setItem('token', ...)` 注入 Omnipub 会话——实测 10 平台登录态全部恢复
 - **官方 CfT zip 包在 macOS 26.6 网络全断（2026-11 实测）**：从 googlechromelabs 下载的官方 CfT 157 mac-arm64，页面渲染正常（chrome:// 可用）但所有 http(s) 加载永久挂起（干净 profile + `--no-sandbox` 亦然）；Playwright 重打包的构建（chromium-1208/145）无此问题。需要 CfT 时优先用 Playwright 缓存内的构建
 - **DSH bash 前台命令里的 `&` 后台进程会被回收**：命令结束时整个进程组被杀（Chrome 以 SIGTRAP 终止）。长驻浏览器必须用 `run_in_background` 任务启动，不能 `cmd &` 挂在前台命令里
+- **CDP `/json/list` 的 URL 元数据在导航后会陈旧**：tab 跨源导航（如 about:blank → localhost）会销毁旧执行上下文，但 target 条目的 URL 字段可能滞后；用旧 `webSocketDebuggerUrl` 求值会打进僵尸上下文（典型症状：`location.href` 永远 about:blank、`localStorage` 抛 SecurityError、`chrome.runtime` undefined——极易误判为「页面挂了/扩展没注入」）。正确做法：每次操作前重新枚举 `/json/list` 取当前 target，再连新 ws
 - **B站 opus 文章不在旧列表 API**：`api.bilibili.com/x/article/creative/article/list` 查不到新 opus 文章（返回空或旧数据），图文管理列表用 `x/polymer/web-dynamic/v1/opus/creationlist`。图文管理页是 `member.bilibili.com/platform/upload-manager/opus`
 - **Google Chrome 137+ 品牌版移除 `--load-extension`**：Google Chrome（非 Chromium/CfT）不再支持命令行加载扩展，`--disable-extensions-except` 也会禁用所有扩展。本地测试必须用 **Chrome for Testing**（Playwright 缓存内的 `Google Chrome for Testing.app`），并配合独立的 user-data-dir
 - **扩展重载（chrome.runtime.reload）后必须刷新已打开页面**：重载后旧页面的 content script 上下文失效，页面桥接会报 "Extension context invalidated"，必须刷新页面重新注入 bridge scripts
