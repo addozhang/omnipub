@@ -327,7 +327,7 @@ await browser.close(); // 仅断开连接，不关闭浏览器
 | 博客园 | cnblogs | ✅ | TinyMCE | 已验证 | — |
 | 今日头条 | toutiao | ✅ | ProseMirror | 已验证 | 两步 API 发布 + 弹窗关闭 |
 | 51CTO | 51cto | ✅ | Markdown 分栏（`textarea.write-area`） | 已验证 | 内容走 `POST /blogger/publish`（`check=1` 即为发布），不点页面按钮；文章 ID 取响应 `data.blog_id`（`did` 是草稿 ID）；部分内容会以**动态**形式发布（作者页 `/addozhang/release`），不在博客文章列表；内容触发违禁词时 API 返回「含有违禁词」 |
-| 思否 | segmentfault | ✅ | markdown textarea | 已验证 | — |
+| 思否 | segmentfault | ✅ | markdown (CodeMirror) | 已验证 | 提交按钮按「文字=提交」过滤（导航「撰写」按钮同类名）；**2026-11 起平台侧存在文章不可见状态（提交成功≠公开，详见特殊发布流程）** |
 | 哔哩哔哩 | bilibili | ✅ | TipTap/ProseMirror (iframe) | 已验证 | 编辑器在 iframe (`york/read-editor`) 内；`all_frames: true`；剥离外部 `<img>` 标签；**2026-11 改版为二段式发布**（详见特殊发布流程） |
 | 开源中国 | oschina | ✅ | ProseMirror（内容走 API 不依赖编辑器） | 已验证 | ai-write 入口 + 重定向 + 向导关闭 + catalog + Markdown API 发布 |
 | InfoQ | infoq | ✅ | ProseMirror | 已验证 | 需创建草稿 + 弹窗关闭；必须捕获 `/article/{id}` 跳转才算成功（draftId 推导会假阳性）；发布后可能被自动审核下线 |
@@ -608,6 +608,12 @@ Vue 前端 (usePublish.js 监听进度更新 UI)
 - **分类和标签必填**：未选择分类时"确定并发布"按钮不可点击；未添加标签时显示"至少添加一个标签"校验错误
 - **图片自动转存**：`beforeFill()` 检测外部图片 URL，批量上传到掘金 CDN（`api.juejin.cn/upload_api/v1/upload`），替换 HTML/Markdown 中的 URL
 - **自动兜底**：未配置分类时自动选择第一个可用分类；未配置标签时自动选择第一个可用标签
+
+#### 思否（SegmentFault）
+- **编辑器**：CodeMirror Markdown；标题 `#title`；提交按钮 `.btn.btn-primary` 且文字「提交」（注意：顶部导航「撰写」按钮也是 `.btn.btn-primary`，publisher 按 `text === "提交"` 过滤是正确做法，勿改成纯选择器）
+- **发布 API**：点击提交 → `PUT /gateway/article/{id}`（先自动创建文章实体）→ 跳转 `/a/{id}`。gateway 请求带 `keyv/ivd` 签名参数，扩展外裸调用返回「非法请求」
+- **平台侧不可见状态（2026-11 实测）**：提交成功 ≠ 公开。文章可能长期处于「作者可见、公开 404、不进作者博客列表/RSS/搜索」的状态（疑似账号风控审核：11-03 上午发文即时公开，中午起全部不可见，站内无任何审核通知）。**核验公开性必须用无 cookie 请求**（`curl` 期望 200），登录态浏览器看 /a/{id} 永远 200 会误判
+- **诊断入口**：我的博客管理页 `/u/{username}/articles` 可见全部文章（含不可见状态）；编辑页「舍弃草稿」只丢弃未保存编辑，**不会删除已创建的文章**（删除入口需在管理页操作）
 
 #### CSDN
 - **CKEditor 4 iframe**：内容通过 `CKEDITOR.instances[keys[0]].setData(html)` 填充
