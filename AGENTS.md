@@ -239,7 +239,7 @@ rm -f ~/.omnipub-test-profile/Singleton*
 curl -s http://localhost:9222/json/version | python3 -m json.tool
 ```
 
-> ⚠️ **DSH/AI Agent 环境注意**：上面 shell 里的 `&` 后台写法只适用于交互终端。在 DSH bash 前台命令中 `&` 挂起的进程会随命令结束被整组回收——**统一使用 `omnipub-browser` skill**（`~/.dsh/skills/omnipub-browser`，提供 launch/status/stop 脚本与完整生命周期管理）。另：此 profile 由当前锁定的 chromium-1208（CfT 145）写入，**不得用更低版本的 CfT 打开**（降级即崩溃，见已知陷阱）。
+> ⚠️ **DSH/AI Agent 环境注意**：上面 shell 里的 `&` 后台写法只适用于交互终端。在 DSH bash 前台命令中 `&` 挂起的进程会随命令结束被整组回收——**统一使用 `omnipub-browser` skill**（`.dsh/skills/omnipub-browser`，提供 launch/status/stop 脚本与完整生命周期管理）。另：此 profile 由当前锁定的 chromium-1208（CfT 145）写入，**不得用更低版本的 CfT 打开**（降级即崩溃，见已知陷阱）。
 
 #### Step 2：连接 MCP 服务器（Dual CDP）
 
